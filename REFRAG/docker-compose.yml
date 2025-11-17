@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=REFRAG RAG System
+      - DEBUG=True
+      - CHROMA_PERSIST_DIRECTORY=/app/chroma_db
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - EMBEDDING_DEVICE=cpu
+    volumes:
+      - ./backend/chroma_db:/app/chroma_db
+      - ./backend/uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - refrag-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - refrag-network
+
+networks:
+  refrag-network:
+    driver: bridge
+
+volumes:
+  chroma_data:
+  uploads_data:
