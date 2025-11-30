@@ -1,6 +1,6 @@
 // Permission management system
 
-import { Permission, UserRole, Resource, Action, User } from '@/types';
+import { Permission, UserRole, PermissionResource, Action, User } from '@/types';
 
 /**
  * Create default permissions based on role
@@ -26,7 +26,7 @@ export function createDefaultPermissions(role: UserRole): Permission[] {
  * Admin has full access to everything
  */
 function getAdminPermissions(): Permission[] {
-  const allResources: Resource[] = [
+  const allResources: PermissionResource[] = [
     'projects',
     'scheduling',
     'resources',
@@ -150,7 +150,7 @@ function getStakeholderPermissions(): Permission[] {
  */
 export function hasPermission(
   user: User,
-  resource: Resource,
+  resource: PermissionResource,
   action: Action,
   context?: {
     projectId?: string;
@@ -189,14 +189,14 @@ export function hasPermission(
 /**
  * Filter permissions by resource
  */
-export function getResourcePermissions(user: User, resource: Resource): Permission | null {
+export function getResourcePermissions(user: User, resource: PermissionResource): Permission | null {
   return user.permissions.find(p => p.resource === resource) || null;
 }
 
 /**
  * Get all actions user can perform on resource
  */
-export function getAllowedActions(user: User, resource: Resource): Action[] {
+export function getAllowedActions(user: User, resource: PermissionResource): Action[] {
   if (user.role === 'admin') {
     return ['view', 'create', 'edit', 'delete', 'approve', 'export', 'import'];
   }

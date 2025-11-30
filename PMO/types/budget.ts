@@ -12,7 +12,7 @@ export interface BudgetItem extends BaseEntity {
   variance: number;
   variancePercentage: number;
   currency: string;
-  fiscal Year: number;
+  fiscalYear: number;
   fiscalQuarter: number;
   approved: boolean;
   approvedBy?: string;

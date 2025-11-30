@@ -19,13 +19,13 @@ export interface User extends BaseEntity {
 }
 
 export interface Permission {
-  resource: Resource;
+  resource: PermissionResource;
   actions: Action[];
   scope?: 'all' | 'own' | 'department' | 'project';
   projectIds?: string[];
 }
 
-export type Resource =
+export type PermissionResource =
   | 'projects'
   | 'scheduling'
   | 'resources'
