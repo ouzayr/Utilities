@@ -3,7 +3,7 @@
 
 import LocalStorageService from './LocalStorageService';
 import ApiService from './ApiService';
-import { IDataService } from './IDataService';
+import { IDataService, DATA_KEYS } from './IDataService';
 
 // Configuration - change this to switch between implementations
 const USE_API = process.env.NEXT_PUBLIC_USE_API === 'true';
@@ -11,7 +11,7 @@ const USE_API = process.env.NEXT_PUBLIC_USE_API === 'true';
 // Export the appropriate service based on configuration
 const dataService: IDataService = USE_API ? ApiService : LocalStorageService;
 
-export { dataService, DATA_KEYS } from './IDataService';
+export { dataService, DATA_KEYS };
 export type { IDataService } from './IDataService';
 export { LocalStorageService, ApiService };
 export default dataService;

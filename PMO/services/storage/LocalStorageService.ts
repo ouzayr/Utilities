@@ -39,22 +39,22 @@ class LocalStorageService implements IDataService {
     }
   }
 
-  async get<T extends { id: string }>(key: string, id: string): Promise<T | null> {
+  async get<T>(key: string, id: string): Promise<T | null> {
     const items = this.getStorage<T>(key);
-    return items.find(item => item.id === id) || null;
+    return items.find((item: any) => item.id === id) || null;
   }
 
   async getAll<T>(key: string): Promise<T[]> {
     return this.getStorage<T>(key);
   }
 
-  async create<T extends { id: string }>(key: string, data: T): Promise<T> {
+  async create<T>(key: string, data: T): Promise<T> {
     const items = this.getStorage<T>(key);
 
     // Ensure unique ID
-    const existingItem = items.find(item => item.id === data.id);
+    const existingItem = items.find((item: any) => item.id === (data as any).id);
     if (existingItem) {
-      throw new Error(`Item with id ${data.id} already exists`);
+      throw new Error(`Item with id ${(data as any).id} already exists`);
     }
 
     items.push(data);
@@ -63,13 +63,13 @@ class LocalStorageService implements IDataService {
     return data;
   }
 
-  async update<T extends { id: string }>(
+  async update<T>(
     key: string,
     id: string,
     data: Partial<T>
   ): Promise<T> {
     const items = this.getStorage<T>(key);
-    const index = items.findIndex(item => item.id === id);
+    const index = items.findIndex((item: any) => item.id === id);
 
     if (index === -1) {
       throw new Error(`Item with id ${id} not found`);
@@ -98,15 +98,15 @@ class LocalStorageService implements IDataService {
     return items.filter(predicate);
   }
 
-  async createMany<T extends { id: string }>(key: string, newItems: T[]): Promise<T[]> {
+  async createMany<T>(key: string, newItems: T[]): Promise<T[]> {
     const items = this.getStorage<T>(key);
 
     // Check for duplicate IDs
-    const existingIds = new Set(items.map(item => item.id));
-    const duplicates = newItems.filter(item => existingIds.has(item.id));
+    const existingIds = new Set(items.map((item: any) => item.id));
+    const duplicates = newItems.filter((item: any) => existingIds.has(item.id));
 
     if (duplicates.length > 0) {
-      throw new Error(`Duplicate IDs found: ${duplicates.map(d => d.id).join(', ')}`);
+      throw new Error(`Duplicate IDs found: ${duplicates.map((d: any) => d.id).join(', ')}`);
     }
 
     items.push(...newItems);
@@ -115,7 +115,7 @@ class LocalStorageService implements IDataService {
     return newItems;
   }
 
-  async updateMany<T extends { id: string }>(
+  async updateMany<T>(
     key: string,
     updates: Array<{ id: string; data: Partial<T> }>
   ): Promise<T[]> {
@@ -123,7 +123,7 @@ class LocalStorageService implements IDataService {
     const updatedItems: T[] = [];
 
     updates.forEach(({ id, data }) => {
-      const index = items.findIndex(item => item.id === id);
+      const index = items.findIndex((item: any) => item.id === id);
       if (index !== -1) {
         items[index] = { ...items[index], ...data };
         updatedItems.push(items[index]);
