@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Tracker - Daily Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <h2>Diary</h2>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#daily" class="nav-link active">Daily</a></li>
+                <li><a href="#weekly" class="nav-link">Weekly</a></li>
+                <li><a href="#dashboard" class="nav-link">Dashboard</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Daily View Section -->
+            <section id="daily" class="view-section active">
+                <div class="header">
+                    <h1 class="page-title">Daily Log</h1>
+                    <div class="date-selector">
+                        <button class="nav-btn">&lt;</button>
+                        <div class="date-display">Today, March 10</div>
+                        <button class="nav-btn">&gt;</button>
+                    </div>
+                </div>
+
+                <div class="card journal-card">
+                    <div class="card-content">
+                        <!-- Add Task Form -->
+                        <form class="add-task-form">
+                            <input type="text" placeholder="What needs doing?" class="task-input" />
+                            <button type="submit" class="add-btn">+</button>
+                        </form>
+
+                        <!-- Task List -->
+                        <div class="task-list">
+                            <div class="task-item">
+                                <div class="task-checkbox"></div>
+                                <div class="priority-dot priority-high"></div>
+                                <span class="task-title">Complete quarterly report</span>
+                                <div class="task-actions">
+                                    <button class="action-btn cancel-btn" title="Cancel">✕</button>
+                                    <button class="action-btn delete-btn" title="Delete">🗑</button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <div class="task-checkbox checked"></div>
+                                <div class="priority-dot priority-medium"></div>
+                                <span class="task-title completed">Review design mockups</span>
+                                <div class="task-actions">
+                                    <button class="action-btn delete-btn" title="Delete">🗑</button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <div class="task-checkbox"></div>
+                                <div class="priority-dot priority-urgent"></div>
+                                <span class="task-title">Client presentation prep</span>
+                                <div class="task-actions">
+                                    <button class="action-btn cancel-btn" title="Cancel">✕</button>
+                                    <button class="action-btn delete-btn" title="Delete">🗑</button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <div class="task-checkbox"></div>
+                                <div class="priority-dot priority-low"></div>
+                                <span class="task-title">Update project documentation</span>
+                                <div class="task-actions">
+                                    <button class="action-btn cancel-btn" title="Cancel">✕</button>
+                                    <button class="action-btn delete-btn" title="Delete">🗑</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Weekly View Section -->
+            <section id="weekly" class="view-section">
+                <div class="header">
+                    <h1 class="page-title">Planner</h1>
+                    <div class="date-selector">
+                        <button class="nav-btn">&lt;</button>
+                        <div class="date-display">Mar 3 - Mar 9, 2026</div>
+                        <button class="nav-btn">&gt;</button>
+                    </div>
+                    <div class="view-toggle">
+                        <button class="view-btn active">Week</button>
+                        <button class="view-btn">Month</button>
+                        <button class="view-btn">Year</button>
+                    </div>
+                </div>
+
+                <div class="week-grid">
+                    <div class="day-card">
+                        <div class="day-header">Monday</div>
+                        <div class="day-date">Mar 3</div>
+                        <div class="day-tasks">
+                            <div class="mini-task">
+                                <div class="mini-checkbox"></div>
+                                <div class="mini-priority priority-medium"></div>
+                                <span class="mini-title">Morning standup</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="day-card">
+                        <div class="day-header">Tuesday</div>
+                        <div class="day-date">Mar 4</div>
+                        <div class="day-tasks">
+                            <div class="mini-task">
+                                <div class="mini-checkbox checked"></div>
+                                <div class="mini-priority priority-high"></div>
+                                <span class="mini-title">Client meeting</span>
+                            </div>
+                            <div class="mini-task">
+                                <div class="mini-checkbox"></div>
+                                <div class="mini-priority priority-low"></div>
+                                <span class="mini-title">Email followup</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="day-card">
+                        <div class="day-header">Wednesday</div>
+                        <div class="day-date">Mar 5</div>
+                        <div class="day-tasks">
+                            <div class="mini-task">
+                                <div class="mini-checkbox"></div>
+                                <div class="mini-priority priority-urgent"></div>
+                                <span class="mini-title">Deadline</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="day-card">
+                        <div class="day-header">Thursday</div>
+                        <div class="day-date">Mar 6</div>
+                        <div class="day-tasks">
+                            <p class="empty-state">No tasks</p>
+                        </div>
+                    </div>
+
+                    <div class="day-card">
+                        <div class="day-header">Friday</div>
+                        <div class="day-date">Mar 7</div>
+                        <div class="day-tasks">
+                            <div class="mini-task">
+                                <div class="mini-checkbox"></div>
+                                <div class="mini-priority priority-medium"></div>
+                                <span class="mini-title">Weekly review</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="day-card">
+                        <div class="day-header">Saturday</div>
+                        <div class="day-date">Mar 8</div>
+                        <div class="day-tasks">
+                            <p class="empty-state">No tasks</p>
+                        </div>
+                    </div>
+
+                    <div class="day-card">
+                        <div class="day-header">Sunday</div>
+                        <div class="day-date">Mar 9</div>
+                        <div class="day-tasks">
+                            <p class="empty-state">No tasks</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card pending-card">
+                    <div class="card-header">Pending Tasks</div>
+                    <div class="card-content">
+                        <div class="pending-task">
+                            <div class="task-checkbox"></div>
+                            <div class="priority-dot priority-high"></div>
+                            <span class="task-title">Complete design review</span>
+                            <span class="task-date">Mar 5</span>
+                        </div>
+                        <div class="pending-task">
+                            <div class="task-checkbox"></div>
+                            <div class="priority-dot priority-urgent"></div>
+                            <span class="task-title">Final presentation</span>
+                            <span class="task-date">Mar 10</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="view-section">
+                <div class="header">
+                    <h1 class="page-title">Insights</h1>
+                    <div class="date-selector">
+                        <button class="nav-btn">&lt;</button>
+                        <div class="date-display">Week of Mar 3</div>
+                        <button class="nav-btn">&gt;</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Tasks Completed</div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" style="width: 75%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Pending Tasks</div>
+                        <div class="stat-value">4</div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" style="width: 25%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Completion Rate</div>
+                        <div class="stat-value">75%</div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" style="width: 75%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">High Priority</div>
+                        <div class="stat-value">2</div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" style="width: 30%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-header">Weekly Activity</div>
+                    <div class="chart-placeholder">
+                        <p>📊 Task completion chart would display here</p>
+                        <p>Showing daily completion trends for the week</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal for Task Details -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Task Details</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select>
+                        <option>Low (Blue)</option>
+                        <option>Medium (Orange)</option>
+                        <option>High (Red)</option>
+                        <option>Urgent (Purple)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" placeholder="Work, Personal, etc." />
+                </div>
+                <div class="form-group">
+                    <label>Client</label>
+                    <input type="text" placeholder="Client name" />
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea placeholder="Write your thoughts..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary">Cancel</button>
+                <button class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Morning Replan Modal -->
+    <div class="modal" id="replanModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Morning Reflection</h2>
+            </div>
+            <div class="modal-body">
+                <p>You have 2 uncompleted tasks from previous days. How shall we proceed?</p>
+                <div class="task-preview">
+                    <p><strong>"Complete quarterly report"</strong></p>
+                    <p class="task-date">from 2026-03-05</p>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-outline">✓ Mark Completed</button>
+                    <button class="btn btn-outline">→ Carry Over to Today</button>
+                    <button class="btn btn-outline">✕ Cancel Task</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
