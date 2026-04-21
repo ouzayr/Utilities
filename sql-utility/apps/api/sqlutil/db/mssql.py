@@ -13,6 +13,7 @@ from typing import Any, Iterator
 import pyodbc
 
 from .app_store import get_store
+from .readonly import WriteAttemptError, assert_read_only, leading_keyword, split_statements
 
 
 def build_connection_url(conn: dict, *, password: str) -> str:
@@ -42,7 +43,37 @@ class MssqlConnection:
         self._conn = pyodbc_conn
         self._allow_writes_to_schema = allow_writes_to_schema
 
+    def _guard(self, sql: str) -> None:
+        """Reject write statements unless the caller opted into a schema.
+
+        When `allow_writes_to_schema` is None, the whole batch must be
+        read-only. When it is set, we require every write statement in the
+        batch to reference `[<schema>]` — a cheap lexical check that blocks
+        accidental cross-schema writes through this wrapper.
+        """
+        if self._allow_writes_to_schema is None:
+            assert_read_only(sql)
+            return
+
+        target = f"[{self._allow_writes_to_schema}]".lower()
+        for stmt in split_statements(sql):
+            kw = leading_keyword(stmt)
+            # Reads always allowed; SET / USE / DECLARE / PRINT are session-local.
+            if kw in {"SELECT", "WITH", "VALUES", "SET", "USE", "DECLARE", "PRINT", "SHOW", "IF"}:
+                continue
+            # CREATE SCHEMA for the allowed schema is explicitly permitted.
+            lowered = stmt.lower()
+            if target in lowered or f"schema [{self._allow_writes_to_schema.lower()}]" in lowered:
+                continue
+            raise WriteAttemptError(
+                f"write statement `{kw}` outside allowed schema "
+                f"[{self._allow_writes_to_schema}]",
+                statement=stmt,
+                keyword=kw,
+            )
+
     def fetch_all(self, sql: str, params: tuple[Any, ...] = ()) -> list[dict]:
+        self._guard(sql)
         cur = self._conn.cursor()
         cur.execute(sql, params)
         cols = [c[0] for c in cur.description] if cur.description else []
@@ -53,6 +84,7 @@ class MssqlConnection:
         return rows[0] if rows else None
 
     def execute(self, sql: str, params: tuple[Any, ...] = ()) -> int:
+        self._guard(sql)
         cur = self._conn.cursor()
         cur.execute(sql, params)
         return cur.rowcount

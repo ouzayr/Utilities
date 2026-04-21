@@ -43,7 +43,11 @@ SELECT
     OBJECT_DEFINITION(c.default_object_id) AS default_definition,
     CAST(ep.value AS NVARCHAR(MAX)) AS description
 FROM sys.columns c
-JOIN sys.tables t ON t.object_id = c.object_id
+JOIN (
+    SELECT object_id, name, schema_id FROM sys.tables
+    UNION ALL
+    SELECT object_id, name, schema_id FROM sys.views
+) t ON t.object_id = c.object_id
 JOIN sys.schemas s ON s.schema_id = t.schema_id
 LEFT JOIN sys.extended_properties ep
   ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
