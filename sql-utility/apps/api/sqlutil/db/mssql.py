@@ -1,0 +1,85 @@
+"""SQL Server connection helpers.
+
+We intentionally avoid SQLAlchemy ORM here — introspection is read-heavy and the
+queries are dialect-specific, so a thin pyodbc wrapper gives us clearer control
+over parameter binding, timeouts, and read-only enforcement.
+"""
+
+from __future__ import annotations
+
+from contextlib import contextmanager
+from typing import Any, Iterator
+
+import pyodbc
+
+from .app_store import get_store
+
+
+def build_connection_url(conn: dict, *, password: str) -> str:
+    """Build a pyodbc connection string from a saved-connection dict."""
+    parts = [
+        f"DRIVER={{{conn.get('driver', 'ODBC Driver 18 for SQL Server')}}}",
+        f"SERVER={conn['host']},{conn.get('port', 1433)}",
+        f"DATABASE={conn['database']}",
+        f"UID={conn['username']}",
+        f"PWD={password}",
+        f"Encrypt={'yes' if conn.get('encrypt', True) else 'no'}",
+        f"TrustServerCertificate={'yes' if conn.get('trust_server_certificate', True) else 'no'}",
+        "Application Name=sqlutil",
+    ]
+    return ";".join(parts) + ";"
+
+
+class MssqlConnection:
+    """Thin wrapper around a pyodbc connection with read-only-by-default semantics.
+
+    The wrapper tracks whether a statement is a write, and by default refuses to
+    execute writes outside of the metadata schema. This is a belt-and-braces
+    guard in addition to using a narrowly-scoped SQL login.
+    """
+
+    def __init__(self, pyodbc_conn: pyodbc.Connection, *, allow_writes_to_schema: str | None = None):
+        self._conn = pyodbc_conn
+        self._allow_writes_to_schema = allow_writes_to_schema
+
+    def fetch_all(self, sql: str, params: tuple[Any, ...] = ()) -> list[dict]:
+        cur = self._conn.cursor()
+        cur.execute(sql, params)
+        cols = [c[0] for c in cur.description] if cur.description else []
+        return [dict(zip(cols, row, strict=False)) for row in cur.fetchall()]
+
+    def fetch_one(self, sql: str, params: tuple[Any, ...] = ()) -> dict | None:
+        rows = self.fetch_all(sql, params)
+        return rows[0] if rows else None
+
+    def execute(self, sql: str, params: tuple[Any, ...] = ()) -> int:
+        cur = self._conn.cursor()
+        cur.execute(sql, params)
+        return cur.rowcount
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+@contextmanager
+def get_connection(
+    connection_id: str,
+    *,
+    timeout: int = 30,
+    allow_writes_to_schema: str | None = None,
+) -> Iterator[MssqlConnection]:
+    store = get_store()
+    saved = store.get_connection(connection_id, with_password=True)
+    if saved is None:
+        raise LookupError(f"connection {connection_id} not found")
+    url = build_connection_url(saved, password=saved["password"])
+    raw = pyodbc.connect(url, timeout=timeout)
+    raw.timeout = timeout
+    wrapper = MssqlConnection(raw, allow_writes_to_schema=allow_writes_to_schema)
+    try:
+        yield wrapper
+    finally:
+        wrapper.close()

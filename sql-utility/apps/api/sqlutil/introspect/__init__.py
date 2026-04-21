@@ -1,0 +1,41 @@
+from .queries import (
+    get_columns,
+    get_dependencies,
+    get_foreign_keys,
+    get_indexes,
+    get_primary_keys,
+    get_table_sizes,
+    get_tables,
+    get_unique_constraints,
+)
+from .schema_model import (
+    Column,
+    Dependency,
+    ForeignKey,
+    Index,
+    PrimaryKey,
+    Schema,
+    Table,
+    UniqueConstraint,
+    build_schema,
+)
+
+__all__ = [
+    "Column",
+    "Dependency",
+    "ForeignKey",
+    "Index",
+    "PrimaryKey",
+    "Schema",
+    "Table",
+    "UniqueConstraint",
+    "build_schema",
+    "get_columns",
+    "get_dependencies",
+    "get_foreign_keys",
+    "get_indexes",
+    "get_primary_keys",
+    "get_table_sizes",
+    "get_tables",
+    "get_unique_constraints",
+]
