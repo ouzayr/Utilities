@@ -6,7 +6,6 @@ Secrets (password) are encrypted at rest with Fernet.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import time
 import uuid
@@ -22,13 +21,16 @@ CREATE TABLE IF NOT EXISTS connections (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     host TEXT NOT NULL,
-    port INTEGER NOT NULL DEFAULT 1433,
+    port INTEGER,
+    instance TEXT,
     database TEXT NOT NULL,
-    username TEXT NOT NULL,
-    password_enc TEXT NOT NULL,
+    auth_mode TEXT NOT NULL DEFAULT 'sql',
+    username TEXT,
+    password_enc TEXT,
     driver TEXT NOT NULL DEFAULT 'ODBC Driver 18 for SQL Server',
     trust_server_certificate INTEGER NOT NULL DEFAULT 1,
     encrypt INTEGER NOT NULL DEFAULT 1,
+    extra_params TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -42,6 +44,15 @@ CREATE TABLE IF NOT EXISTS snapshots (
     FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
 );
 """
+
+
+# Columns added to the connections table after initial release; for existing
+# installs we add them idempotently on migrate().
+_EXPECTED_COLUMNS: dict[str, str] = {
+    "instance": "TEXT",
+    "auth_mode": "TEXT NOT NULL DEFAULT 'sql'",
+    "extra_params": "TEXT",
+}
 
 
 class AppStore:
@@ -62,15 +73,24 @@ class AppStore:
     def migrate(self) -> None:
         with self._conn() as c:
             c.executescript(SCHEMA)
+            existing = {
+                row["name"] for row in c.execute("PRAGMA table_info(connections)").fetchall()
+            }
+            for col, ddl in _EXPECTED_COLUMNS.items():
+                if col not in existing:
+                    c.execute(f"ALTER TABLE connections ADD COLUMN {col} {ddl}")
 
     # ---- connections ---------------------------------------------------
+
+    _PUBLIC_COLS = (
+        "id, name, host, port, instance, database, auth_mode, username, driver, "
+        "trust_server_certificate, encrypt, extra_params, created_at, updated_at"
+    )
 
     def list_connections(self) -> list[dict]:
         with self._conn() as c:
             rows = c.execute(
-                "SELECT id, name, host, port, database, username, driver, "
-                "trust_server_certificate, encrypt, created_at, updated_at FROM connections "
-                "ORDER BY name"
+                f"SELECT {self._PUBLIC_COLS} FROM connections ORDER BY name"
             ).fetchall()
             return [dict(r) for r in rows]
 
@@ -81,30 +101,35 @@ class AppStore:
                 return None
             d = dict(row)
             if with_password:
-                d["password"] = decrypt(d["password_enc"])
+                pw_enc = d.get("password_enc")
+                d["password"] = decrypt(pw_enc) if pw_enc else ""
             d.pop("password_enc", None)
             return d
 
     def create_connection(self, data: dict) -> dict:
         cid = str(uuid.uuid4())
         now = int(time.time())
-        pw_enc = encrypt(data["password"])
+        pw_enc = encrypt(data["password"]) if data.get("password") else None
         with self._conn() as c:
             c.execute(
-                "INSERT INTO connections (id, name, host, port, database, username, password_enc, "
-                "driver, trust_server_certificate, encrypt, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO connections (id, name, host, port, instance, database, "
+                "auth_mode, username, password_enc, driver, trust_server_certificate, "
+                "encrypt, extra_params, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     cid,
                     data["name"],
                     data["host"],
-                    int(data.get("port", 1433)),
+                    int(data["port"]) if data.get("port") else None,
+                    data.get("instance"),
                     data["database"],
-                    data["username"],
+                    data.get("auth_mode", "sql"),
+                    data.get("username"),
                     pw_enc,
                     data.get("driver", "ODBC Driver 18 for SQL Server"),
                     1 if data.get("trust_server_certificate", True) else 0,
                     1 if data.get("encrypt", True) else 0,
+                    data.get("extra_params"),
                     now,
                     now,
                 ),
@@ -118,23 +143,28 @@ class AppStore:
         if current is None:
             return None
         merged = {**current, **data}
-        pw_enc = encrypt(merged["password"])
+        pw = merged.get("password")
+        pw_enc = encrypt(pw) if pw else None
         now = int(time.time())
         with self._conn() as c:
             c.execute(
-                "UPDATE connections SET name=?, host=?, port=?, database=?, username=?, "
-                "password_enc=?, driver=?, trust_server_certificate=?, encrypt=?, updated_at=? "
+                "UPDATE connections SET name=?, host=?, port=?, instance=?, database=?, "
+                "auth_mode=?, username=?, password_enc=?, driver=?, "
+                "trust_server_certificate=?, encrypt=?, extra_params=?, updated_at=? "
                 "WHERE id=?",
                 (
                     merged["name"],
                     merged["host"],
-                    int(merged["port"]),
+                    int(merged["port"]) if merged.get("port") else None,
+                    merged.get("instance"),
                     merged["database"],
-                    merged["username"],
+                    merged.get("auth_mode", "sql"),
+                    merged.get("username"),
                     pw_enc,
                     merged.get("driver", "ODBC Driver 18 for SQL Server"),
                     1 if merged.get("trust_server_certificate", True) else 0,
                     1 if merged.get("encrypt", True) else 0,
+                    merged.get("extra_params"),
                     now,
                     conn_id,
                 ),
@@ -146,32 +176,6 @@ class AppStore:
             cur = c.execute("DELETE FROM connections WHERE id = ?", (conn_id,))
             return cur.rowcount > 0
 
-    # ---- snapshots -----------------------------------------------------
-
-    def save_snapshot(self, connection_id: str, kind: str, payload: dict) -> str:
-        sid = str(uuid.uuid4())
-        with self._conn() as c:
-            c.execute(
-                "INSERT INTO snapshots (id, connection_id, created_at, kind, payload) VALUES (?, ?, ?, ?, ?)",
-                (sid, connection_id, int(time.time()), kind, json.dumps(payload)),
-            )
-        return sid
-
-    def list_snapshots(self, connection_id: str, kind: str | None = None) -> list[dict]:
-        with self._conn() as c:
-            if kind:
-                rows = c.execute(
-                    "SELECT id, kind, created_at FROM snapshots WHERE connection_id = ? AND kind = ? "
-                    "ORDER BY created_at DESC",
-                    (connection_id, kind),
-                ).fetchall()
-            else:
-                rows = c.execute(
-                    "SELECT id, kind, created_at FROM snapshots WHERE connection_id = ? ORDER BY created_at DESC",
-                    (connection_id,),
-                ).fetchall()
-            return [dict(r) for r in rows]
-
 
 _store: AppStore | None = None
 
@@ -180,5 +184,4 @@ def get_store() -> AppStore:
     global _store
     if _store is None:
         _store = AppStore()
-        _store.migrate()
     return _store

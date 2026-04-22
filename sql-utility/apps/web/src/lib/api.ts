@@ -9,9 +9,12 @@ export type Connection = {
   id: string;
   name: string;
   host: string;
-  port: number;
+  port: number | null;
+  instance: string | null;
   database: string;
-  username: string;
+  auth_mode: "sql" | "windows";
+  username: string | null;
+  extra_params: string | null;
 };
 
 export type GraphNode = {

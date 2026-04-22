@@ -15,7 +15,7 @@ from .routes import api_router
 
 logging.basicConfig(level=settings.log_level)
 
-app = FastAPI(title="sqlutil", version="0.1.0", default_response_class=None)
+app = FastAPI(title="sqlutil", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
