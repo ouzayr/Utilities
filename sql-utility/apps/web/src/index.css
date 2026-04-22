@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  background: #0b0e14;
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+input, select, textarea, button {
+  font: inherit;
+}
+
+pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; }
+
+.scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar::-webkit-scrollbar-thumb { background: #1c2230; border-radius: 4px; }
+.scrollbar::-webkit-scrollbar-track { background: transparent; }

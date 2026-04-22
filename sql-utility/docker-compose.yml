@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+    image: sqlutil-api:dev
+    environment:
+      SQLUTIL_DATA_DIR: /data
+      SQLUTIL_CORS_ORIGINS: http://localhost:5173
+      SQLUTIL_WEB_DIST: /app/web
+    volumes:
+      - sqlutil_data:/data
+      - ./apps/web/dist:/app/web:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mssql
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: SqlUtil!dev1234
+    ports:
+      - "11433:1433"
+
+volumes:
+  sqlutil_data: {}
