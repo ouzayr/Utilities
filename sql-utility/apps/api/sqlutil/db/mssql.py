@@ -17,17 +17,52 @@ from .readonly import WriteAttemptError, assert_read_only, leading_keyword, spli
 
 
 def build_connection_url(conn: dict, *, password: str) -> str:
-    """Build a pyodbc connection string from a saved-connection dict."""
+    """Build a pyodbc connection string from a saved-connection dict.
+
+    Supports:
+      * default TCP port (e.g. `localhost,1433`) — set `port`, leave `instance` null.
+      * named instances (e.g. `.\\SQLEXPRESS`)  — set `instance`, port is optional.
+      * SQL auth                                 — auth_mode="sql", username/password.
+      * Windows auth (Trusted_Connection=yes)    — auth_mode="windows", no user/pw.
+      * extra_params                             — raw ODBC key=val;... appended verbatim.
+    """
+    host = conn["host"]
+    instance = (conn.get("instance") or "").strip()
+    port = conn.get("port")
+
+    if instance:
+        server = rf"{host}\{instance}"
+        if port:
+            server = f"{server},{port}"
+    else:
+        server = f"{host},{port}" if port else host
+
     parts = [
         f"DRIVER={{{conn.get('driver', 'ODBC Driver 18 for SQL Server')}}}",
-        f"SERVER={conn['host']},{conn.get('port', 1433)}",
+        f"SERVER={server}",
         f"DATABASE={conn['database']}",
-        f"UID={conn['username']}",
-        f"PWD={password}",
-        f"Encrypt={'yes' if conn.get('encrypt', True) else 'no'}",
-        f"TrustServerCertificate={'yes' if conn.get('trust_server_certificate', True) else 'no'}",
-        "Application Name=sqlutil",
     ]
+
+    auth_mode = (conn.get("auth_mode") or "sql").lower()
+    if auth_mode == "windows":
+        parts.append("Trusted_Connection=yes")
+    else:
+        username = conn.get("username") or ""
+        parts.append(f"UID={username}")
+        parts.append(f"PWD={password}")
+
+    parts.extend(
+        [
+            f"Encrypt={'yes' if conn.get('encrypt', True) else 'no'}",
+            f"TrustServerCertificate={'yes' if conn.get('trust_server_certificate', True) else 'no'}",
+            "Application Name=sqlutil",
+        ]
+    )
+
+    extra = (conn.get("extra_params") or "").strip().strip(";")
+    if extra:
+        parts.append(extra)
+
     return ";".join(parts) + ";"
 
 
