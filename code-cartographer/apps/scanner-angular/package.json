@@ -1,0 +1,31 @@
+{
+  "name": "@code-cartographer/scanner-angular",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Angular static analyser — emits a normalised graph.json",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "cc-scan-angular": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "scan": "node --enable-source-maps dist/index.js",
+    "scan:dev": "tsx src/index.ts",
+    "test": "node --test --import tsx ./src"
+  },
+  "dependencies": {
+    "@angular/compiler": "^17.3.0",
+    "commander": "^12.0.0",
+    "fast-glob": "^3.3.2",
+    "postcss": "^8.4.38",
+    "postcss-scss": "^4.0.9",
+    "ts-morph": "^22.0.0",
+    "typescript": "^5.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "@types/node": "^20.12.0"
+  }
+}
