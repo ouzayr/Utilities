@@ -1,0 +1,91 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cc-db
+    environment:
+      POSTGRES_USER: cc
+      POSTGRES_PASSWORD: cc
+      POSTGRES_DB: codecartographer
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - cc_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cc -d codecartographer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: cc-api
+    image: code-cartographer-api:dev
+    environment:
+      CC_DB_CONNECTION: "Host=db;Port=5432;Database=codecartographer;Username=cc;Password=cc"
+      CC_OFFLINE: "true"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: cc-web
+    image: code-cartographer-web:dev
+    ports:
+      - "127.0.0.1:4200:80"
+    depends_on:
+      - api
+
+  scanner-angular:
+    build:
+      context: .
+      dockerfile: apps/scanner-angular/Dockerfile
+    container_name: cc-scanner-angular
+    image: code-cartographer-scanner-angular:dev
+    environment:
+      CC_API_BASE: "http://api:8080"
+    volumes:
+      - ./samples/sample-ui:/work/sample-ui:ro
+    depends_on:
+      api:
+        condition: service_started
+    profiles: ["scan"]
+    command:
+      - "--root"
+      - "/work/sample-ui"
+      - "--project"
+      - "sample-ui"
+      - "--api-base"
+      - "http://api:8080"
+
+  scanner-dotnet:
+    build:
+      context: .
+      dockerfile: apps/scanner-dotnet/Dockerfile
+    container_name: cc-scanner-dotnet
+    image: code-cartographer-scanner-dotnet:dev
+    environment:
+      CC_API_BASE: "http://api:8080"
+    volumes:
+      - ./samples/sample-api:/work/sample-api:ro
+    depends_on:
+      api:
+        condition: service_started
+    profiles: ["scan"]
+    command:
+      - "--root"
+      - "/work/sample-api"
+      - "--project"
+      - "sample-api"
+      - "--api-base"
+      - "http://api:8080"
+
+volumes:
+  cc_db_data: {}
