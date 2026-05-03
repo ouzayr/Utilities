@@ -109,12 +109,12 @@ static Dictionary<string, string> LoadConfigFile()
                 result[prop.Name] = prop.Value.ToString();
             }
             Console.WriteLine($"[cc-scan-dotnet] loaded config from {resolved}");
+            break;
         }
         catch
         {
-            // ignore malformed config
+            // malformed config — try parent directories
         }
-        break;
     }
     return result;
 }

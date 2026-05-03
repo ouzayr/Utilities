@@ -241,6 +241,7 @@ export class ReposComponent implements OnInit {
       parts.pop();
       let parent = parts.join(sep);
       if (this.browserPath.startsWith(sep)) parent = sep + parent;
+      if (/^[A-Za-z]:$/.test(parent)) parent += sep;
       this.loadBrowser(parent);
     }
   }
