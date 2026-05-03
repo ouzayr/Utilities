@@ -159,7 +159,7 @@ Traverse the graph from a starting node using BFS.
 - `nodeId` — starting node ID
 
 **Query params (optional):**
-- `direction` — `downstream` (default follows outgoing edges), `upstream` (follows incoming edges), or `both`
+- `direction` — `downstream` (follows outgoing edges), `upstream` (follows incoming edges), or `both` (default, follows both directions)
 - `maxDepth` — max BFS depth (default: 6)
 
 **Response:** `200 OK`
