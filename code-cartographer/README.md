@@ -170,7 +170,7 @@ docker compose down --volumes    # stop and wipe the Postgres volume
 
 ## Option B — Run locally without Docker
 
-Useful for hacking on code-cartographer itself.
+Useful for hacking on code-cartographer itself, or running on Windows.
 
 ### 1. Start Postgres
 
@@ -188,33 +188,47 @@ docker run --rm -d \
 
 ### 2. Run the API
 
+The API reads its configuration from `apps/api/appsettings.json` by default
+— no environment variables or command-line flags needed:
+
 ```bash
 cd apps/api
-export CC_DB_CONNECTION="Host=localhost;Port=15432;Database=codecartographer;Username=cc;Password=cc"
 dotnet restore
 dotnet run                       # listens on http://localhost:8080, auto-creates schema
 ```
 
+> **Tip:** Edit `apps/api/appsettings.json` to change the database connection
+> string, bind address, or port. Environment variables (`CC_DB_CONNECTION`,
+> `CC_BIND`, `CC_API_PORT`, `CC_OFFLINE`) still work and take precedence
+> over the JSON file for backward compatibility.
+
 ### 3. Create a scan and run the Angular scanner
 
-```bash
-SCAN_ID=$(curl -s -X POST http://localhost:8080/api/scans -H 'Content-Type: application/json' -d '{"label":"local"}' | jq -r .scanId)
+Both scanners now support a **config file** (`cc-scan-config.json`) so you
+don't have to pass flags on every run. Copy the example and edit it:
 
+```bash
+cp cc-scan-config.example.json cc-scan-config.json
+# Edit cc-scan-config.json to point at your repos
+```
+
+Then run without any parameters:
+
+```bash
 cd apps/scanner-angular
 npm install
 npm run build
-node dist/index.js \
-  --root ../../samples/sample-ui --project sample-ui \
-  --api-base http://localhost:8080 --scan-id "$SCAN_ID"
+node dist/index.js               # reads cc-scan-config.json automatically
 ```
+
+You can still override individual values with CLI flags when needed — they
+take precedence over the config file.
 
 ### 4. Run the .NET scanner
 
 ```bash
 cd apps/scanner-dotnet
-dotnet run -- \
-  --root ../../samples/sample-api --project sample-api \
-  --api-base http://localhost:8080 --scan-id "$SCAN_ID" --finalize
+dotnet run                        # reads cc-scan-config.json automatically
 ```
 
 ### 5. Run the web UI
@@ -222,8 +236,17 @@ dotnet run -- \
 ```bash
 cd apps/web
 npm install
-npm start                         # http://localhost:4200
+npm start                         # http://localhost:4200, proxies /api → :8080
 ```
+
+The Angular dev server automatically proxies `/api` requests to
+`http://localhost:8080` via `proxy.conf.json`.
+
+### 6. Add repositories via the UI
+
+Open **<http://localhost:4200/#/repos>** and use the **"Browse"** button to
+pick a local folder. The UI detects Angular / .NET project markers and
+auto-selects the appropriate side.
 
 ---
 
@@ -264,7 +287,36 @@ The API persists the repo list in Postgres so they stick across restarts.
 
 ## Configuration reference
 
-All configuration is via environment variables. `cp .env.example .env` and edit.
+### API — `apps/api/appsettings.json`
+
+The API reads configuration from `appsettings.json` (recommended for local
+development) **and** from environment variables (for Docker / CI). Environment
+variables take precedence when both are set.
+
+| `appsettings.json` path | Env variable | Default | Meaning |
+|---|---|---|---|
+| `ConnectionStrings:DefaultConnection` | `CC_DB_CONNECTION` | `Host=localhost;Port=15432;…` | Postgres connection string. |
+| `CodeCartographer:Bind` | `CC_BIND` | `127.0.0.1` | Interface the API binds to. |
+| `CodeCartographer:ApiPort` | `CC_API_PORT` | `8080` | API port. |
+| `CodeCartographer:Offline` | `CC_OFFLINE` | `true` | Hard-fails any outbound network call. |
+
+### Scanners — `cc-scan-config.json`
+
+Both scanners look for `cc-scan-config.json` in the current directory (and up
+to two parent directories). Copy `cc-scan-config.example.json` and edit. CLI
+flags still take precedence.
+
+| Key (per-scanner section) | CLI flag | Meaning |
+|---|---|---|
+| `root` | `--root` | Path to the project root to scan. |
+| `project` | `--project` | Logical project key (defaults to folder name). |
+| `apiBase` | `--api-base` | API URL to POST the graph to. |
+| `out` | `--out` | Output path for graph.json. |
+| `finalize` | `--finalize` | Mark the scan as completed after ingest. |
+
+### Docker — `.env`
+
+For Docker Compose, use the `.env` file (`cp .env.example .env`).
 
 | Variable | Default | Meaning |
 |---|---|---|

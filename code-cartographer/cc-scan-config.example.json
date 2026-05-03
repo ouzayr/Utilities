@@ -1,0 +1,16 @@
+{
+  "angular": {
+    "root": "./samples/sample-ui",
+    "project": "sample-ui",
+    "apiBase": "http://localhost:8080",
+    "out": "graph-angular.json",
+    "finalize": false
+  },
+  "dotnet": {
+    "root": "./samples/sample-api",
+    "project": "sample-api",
+    "apiBase": "http://localhost:8080",
+    "out": "graph-dotnet.json",
+    "finalize": true
+  }
+}

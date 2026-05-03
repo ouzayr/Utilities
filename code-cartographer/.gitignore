@@ -1,4 +1,5 @@
 .env
+cc-scan-config.json
 **/bin/
 **/obj/
 **/node_modules/
@@ -11,3 +12,5 @@
 .vscode/
 data/
 .tmp/
+graph.json
+graph-*.json

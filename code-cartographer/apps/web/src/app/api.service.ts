@@ -113,4 +113,32 @@ export class ApiService {
   addRepo(payload: { name: string; side: string; sourceKind: string; location: string; includeGlobs?: string; excludeGlobs?: string }) {
     return this.http.post<{ id: string }>(`${this.base}/repos`, payload);
   }
+  deleteRepo(id: string) { return this.http.delete<void>(`${this.base}/repos/${id}`); }
+
+  browse(path?: string) {
+    let params = new HttpParams();
+    if (path) params = params.set('path', path);
+    return this.http.get<BrowseResponse>(`${this.base}/fs/browse`, { params });
+  }
+}
+
+export interface FsEntry {
+  name: string;
+  path: string;
+  type: 'drive' | 'directory';
+  side?: string | null;
+}
+
+export interface FolderHints {
+  isGitRepo: boolean;
+  hasAngularJson: boolean;
+  hasSln: boolean;
+  hasCsproj: boolean;
+  hasPackageJson: boolean;
+}
+
+export interface BrowseResponse {
+  currentPath: string | null;
+  entries: FsEntry[];
+  hints?: FolderHints | null;
 }
