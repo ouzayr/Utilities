@@ -29,6 +29,20 @@ like:
 9. [Troubleshooting](#troubleshooting)
 10. [Roadmap](#roadmap)
 
+### Further documentation
+
+| Document | Description |
+|---|---|
+| [`docs/API.md`](docs/API.md) | Full REST API reference (all endpoints, request/response shapes) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, components, data flow |
+| [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | Dev setup, coding conventions, how to add features |
+| [`docs/CROSS_LINKING.md`](docs/CROSS_LINKING.md) | How UI HTTP calls are matched to API routes |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Database schema (Postgres tables, indexes) |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Deployment guide (Docker + local Windows/Linux) |
+| [`docs/GRAPH_SCHEMA.md`](docs/GRAPH_SCHEMA.md) | Canonical `graph.json` schema (scanner ↔ API contract) |
+| [`docs/PROJECT_REVIEW.md`](docs/PROJECT_REVIEW.md) | Project review — structural issues and recommendations |
+| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+
 ---
 
 ## Architecture at a glance
@@ -281,7 +295,7 @@ The API persists the repo list in Postgres so they stick across restarts.
 | **Endpoints** | Every API endpoint with its HTTP verb, route, auth attributes, request/response DTOs, and the list of UI components that call it. Orphan endpoints (no UI caller) are flagged. |
 | **Lint** | Findings grouped by severity: dead code, layering violations, SCSS/CSS hygiene, security smells, perf smells. Each finding links to the file:line. |
 | **Diffs** | Compare the latest scan against any earlier scan ("snapshot diff", not git diff). See added / removed / changed nodes and edges. |
-| **Export** | PNG / SVG / PDF of the current view, plus a Markdown architecture report. |
+| **Export** | PNG / SVG of the current view, plus Markdown / HTML / JSON architecture reports. |
 
 ---
 
@@ -334,15 +348,16 @@ For Docker Compose, use the `.env` file (`cp .env.example .env`).
 
 ## Troubleshooting
 
-**`docker compose up` fails with `port 5432 already allocated`**
+See [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for the full guide.
+
+**`docker compose up` fails with `port 15432 already allocated`**
 The DB is mapped to `15432` on purpose to avoid clashing with a host Postgres.
 If you've changed it, pick another free port.
 
 **The graph is empty after a scan**
-- Confirm `CC_REPO_ROOTS` points to a directory that *is mounted into* the
-  scanner container (`docker compose exec scanner ls /repos`).
-- Check `docker compose logs scanner` — the scanners print every file they
-  visit and skip.
+- Check scanner logs for errors.
+- Verify the API base URL and scan ID are correct.
+- Confirm the target project has been restored (`npm install` / `dotnet restore`).
 
 **`scanner-dotnet` fails with `Could not load project ...`**
 Roslyn workspaces need a *restored* solution. Run `dotnet restore` against

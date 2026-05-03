@@ -68,7 +68,7 @@ scanner-dotnet   ──┘                                      │
   - `GET /api/flows/from/{nodeId}` — downstream / upstream BFS.
   - `GET /api/impact/{nodeId}` — full transitive consumer set.
   - `POST /api/scans/import` — accept a previously exported scan JSON.
-  - `GET /api/reports/{id}/export?format=md|html|pdf|json` — render report.
+  - `GET /api/reports/{id}/export?format=md|html|json` — render report.
   - `POST /api/repos`, `GET /api/repos`, `DELETE /api/repos/{id}` — repo CRUD.
 - The cross-link engine runs server-side post-ingest: it walks every UI
   `http-call` edge, normalises the URL pattern, and matches it against the set
