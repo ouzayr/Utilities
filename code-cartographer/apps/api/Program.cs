@@ -4,20 +4,38 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- offline guard ---
-var offline = string.Equals(Environment.GetEnvironmentVariable("CC_OFFLINE") ?? "true", "true", StringComparison.OrdinalIgnoreCase);
+// --- configuration ---
+var config = builder.Configuration;
+var ccSection = config.GetSection("CodeCartographer");
+
+var offline = string.Equals(
+    Environment.GetEnvironmentVariable("CC_OFFLINE")
+        ?? ccSection["Offline"]
+        ?? "true",
+    "true",
+    StringComparison.OrdinalIgnoreCase);
 if (offline)
 {
     AppDomain.CurrentDomain.SetData("CC_OFFLINE", true);
 }
 
 var conn = Environment.GetEnvironmentVariable("CC_DB_CONNECTION")
+    ?? config.GetConnectionString("DefaultConnection")
     ?? "Host=localhost;Port=15432;Database=codecartographer;Username=cc;Password=cc";
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(conn));
+
+var apiPort = int.TryParse(
+    Environment.GetEnvironmentVariable("CC_API_PORT") ?? ccSection["ApiPort"],
+    out var p)
+    ? p
+    : 8080;
+var bind = Environment.GetEnvironmentVariable("CC_BIND") ?? ccSection["Bind"] ?? "127.0.0.1";
+builder.WebHost.UseUrls($"http://{bind}:{apiPort}");
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .WithOrigins("http://localhost:4200", "http://localhost:8080")
+builder.Services.AddCors(o => o.AddDefaultPolicy(pol => pol
+    .WithOrigins("http://localhost:4200", $"http://localhost:{apiPort}")
     .AllowAnyHeader()
     .AllowAnyMethod()));
 builder.Services.AddSingleton<CodeCartographer.Api.CrossLink.CrossLinker>();
@@ -48,6 +66,7 @@ DiffEndpoints.Map(app);
 ReportEndpoints.Map(app);
 DashboardEndpoints.Map(app);
 ImportExportEndpoints.Map(app);
+FileSystemEndpoints.Map(app);
 
 app.MapGet("/", () => Results.Json(new { name = "code-cartographer-api", version = "0.1.0", offline }));
 

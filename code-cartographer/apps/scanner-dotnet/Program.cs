@@ -8,8 +8,11 @@ if (!MSBuildLocator.IsRegistered)
     MSBuildLocator.RegisterDefaults();
 }
 
-var rootOption = new Option<DirectoryInfo>("--root", "Path to the .NET solution root or a folder containing .csproj/.sln files") { IsRequired = true };
-var outOption = new Option<FileInfo>("--out", () => new FileInfo("graph.json"), "Output graph.json path");
+// --- config file support ---
+var fileConfig = LoadConfigFile();
+
+var rootOption = new Option<DirectoryInfo?>("--root", "Path to the .NET solution root or a folder containing .csproj/.sln files");
+var outOption = new Option<FileInfo?>("--out", "Output graph.json path");
 var projectOption = new Option<string?>("--project", "Logical project key (defaults to folder name)");
 var apiBaseOption = new Option<string?>("--api-base", "If set, POST graph.json to this API after writing it");
 var scanIdOption = new Option<string?>("--scan-id", "Existing scan id (UUID) to merge into instead of creating a new scan");
@@ -27,13 +30,25 @@ var root = new RootCommand("cc-scan-dotnet — Roslyn-based scanner for .NET 8 A
 
 root.SetHandler(async (System.CommandLine.Invocation.InvocationContext ctx) =>
 {
-    var rootDir = ctx.ParseResult.GetValueForOption(rootOption)!;
-    var outFile = ctx.ParseResult.GetValueForOption(outOption)!;
-    var project = ctx.ParseResult.GetValueForOption(projectOption);
-    var apiBase = ctx.ParseResult.GetValueForOption(apiBaseOption);
-    var scanId = ctx.ParseResult.GetValueForOption(scanIdOption);
-    var finalize = ctx.ParseResult.GetValueForOption(finalizeOption);
+    var rootDir = ctx.ParseResult.GetValueForOption(rootOption)
+        ?? (fileConfig.TryGetValue("root", out var cfgRoot) ? new DirectoryInfo(cfgRoot) : null);
+    var outFile = ctx.ParseResult.GetValueForOption(outOption)
+        ?? new FileInfo(fileConfig.TryGetValue("out", out var cfgOut) ? cfgOut : "graph.json");
+    var project = ctx.ParseResult.GetValueForOption(projectOption)
+        ?? (fileConfig.TryGetValue("project", out var cfgProj) ? cfgProj : null);
+    var apiBase = ctx.ParseResult.GetValueForOption(apiBaseOption)
+        ?? (fileConfig.TryGetValue("apiBase", out var cfgApi) ? cfgApi : null);
+    var scanId = ctx.ParseResult.GetValueForOption(scanIdOption)
+        ?? (fileConfig.TryGetValue("scanId", out var cfgScan) ? cfgScan : null);
+    var finalize = ctx.ParseResult.GetValueForOption(finalizeOption)
+        || (fileConfig.TryGetValue("finalize", out var cfgFin) && bool.TryParse(cfgFin, out var fin) && fin);
 
+    if (rootDir is null)
+    {
+        Console.Error.WriteLine("[cc-scan-dotnet] --root is required (or set \"root\" in cc-scan-config.json)");
+        ctx.ExitCode = 2;
+        return;
+    }
     if (!rootDir.Exists)
     {
         Console.Error.WriteLine($"[cc-scan-dotnet] root does not exist: {rootDir.FullName}");
@@ -74,3 +89,32 @@ root.SetHandler(async (System.CommandLine.Invocation.InvocationContext ctx) =>
 });
 
 return await root.InvokeAsync(args);
+
+static Dictionary<string, string> LoadConfigFile()
+{
+    var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    string[] candidates = ["cc-scan-config.json", "../cc-scan-config.json", "../../cc-scan-config.json"];
+    foreach (var candidate in candidates)
+    {
+        var resolved = Path.GetFullPath(candidate);
+        if (!File.Exists(resolved)) continue;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(resolved));
+            var section = doc.RootElement;
+            if (section.TryGetProperty("dotnet", out var dotnetSection))
+                section = dotnetSection;
+            foreach (var prop in section.EnumerateObject())
+            {
+                result[prop.Name] = prop.Value.ToString();
+            }
+            Console.WriteLine($"[cc-scan-dotnet] loaded config from {resolved}");
+            break;
+        }
+        catch
+        {
+            // malformed config — try parent directories
+        }
+    }
+    return result;
+}
