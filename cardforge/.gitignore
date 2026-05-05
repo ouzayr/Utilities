@@ -1,0 +1,29 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+*.suo
+*.userprefs
+apps/api/CardForge.Api/logs/
+apps/api/CardForge.Api/appsettings.Production.json
+
+# Entity Framework migrations (keep if you want to track migrations)
+# apps/api/CardForge.Infrastructure/Persistence/Migrations/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+apps/web/.env.local
+apps/web/.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.swp
+.vscode/settings.json
