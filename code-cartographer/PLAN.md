@@ -138,11 +138,16 @@ code-cartographer/
 ├── samples/
 │   ├── sample-api/        Tiny .NET 8 API to validate the scanner
 │   └── sample-ui/         Tiny Angular 17 app to validate the scanner
-├── scripts/               dev launchers (bash + powershell)
 ├── docs/
+│   ├── API.md
 │   ├── ARCHITECTURE.md
+│   ├── CONTRIBUTING.md
+│   ├── CROSS_LINKING.md
 │   ├── DATA_MODEL.md
-│   └── CROSS_LINKING.md
+│   ├── DEPLOYMENT.md
+│   ├── GRAPH_SCHEMA.md
+│   ├── PROJECT_REVIEW.md
+│   └── TROUBLESHOOTING.md
 ├── docker-compose.yml
 ├── .env.example
 ├── README.md
