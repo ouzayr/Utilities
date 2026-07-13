@@ -24,8 +24,9 @@ class InkModelTest {
         assertEquals(2, parsed.strokes[0].pointCount)
         assertEquals(30f, parsed.strokes[0].x(1), 0.11f)
         assertEquals(0.75f, parsed.strokes[0].pressure(1), 0.011f)
-        // Rounding: 1.15 -> one decimal for coords
-        assertEquals(1.2f, parsed.strokes[1].x(0), 0.06f)
+        // Coords round to one decimal, so the parsed value stays within half a
+        // tenth of the original (1.15f is 1.1499999… in binary and rounds down).
+        assertEquals(1.15f, parsed.strokes[1].x(0), 0.051f)
     }
 
     @Test
