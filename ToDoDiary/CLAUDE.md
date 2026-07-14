@@ -225,6 +225,28 @@ Do M1 completely and validate ink feel before anything else. If ink latency/feel
 - **Week tasks:** tasks can be assigned to a whole week (no day) and later assigned to a specific day; day tasks can be promoted to week scope.
 
 ## 12. Still Open (pick a sensible default, note it, proceed)
-1. Default carry-forward target: always tomorrow, or last-used date?
-2. Week start: follow system locale (recommended) — confirm if a fixed Mon start is preferred.
-3. On PDF export of a week, include the week-task section as its own page?
+1. Default carry-forward target: always tomorrow, or last-used date? → **Implemented: tomorrow.**
+2. Week start: follow system locale (recommended) — confirm if a fixed Mon start is preferred. → **Implemented: system locale (week identity stays ISO-8601).**
+3. On PDF export of a week, include the week-task section as its own page? → **Implemented: no, day pages only (v1).**
+
+---
+
+## 13. Addendum (July 2026): cloud + web evolution — supersedes parts of §1 and §9
+
+Per an explicit product decision, v1 now includes:
+
+- **Google Sign-In** (Firebase Authentication) on Android and web.
+- **Cloud Firestore as the single source of truth** (online-first with the SDK's
+  offline cache). Room was dropped; the repository layer talks to Firestore.
+- **A React web companion app** (`web/`): full typed-task management and
+  read-only rendering of ink pages, hosted on Azure.
+- Handwriting is stored in a **portable stroke JSON format** (see
+  `docs/ARCHITECTURE.md`) so both platforms render the same ink.
+
+Items of §9 that remain non-goals: no collaboration/multi-user sharing, no
+reminders, no OCR, no iOS/Flutter, no S Pen BLE SDK.
+
+Note on §3: the ink engine currently shipping is a custom low-latency
+`InkView` (motion prediction + stylus-only input) behind the `InkEngine`
+interface; the Jetpack Ink API (alpha) can be swapped in behind that interface
+as originally planned.
