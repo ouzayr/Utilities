@@ -21,13 +21,11 @@
       "properties": {
         "title": "Competency Matrix",
         "competenciesListTitle": "Competencies",
+        "leadField": "Lead",
         "competencyDescriptionField": "",
-        "staffListTitle": "Staff",
-        "staffNameField": "Title",
-        "staffNameIsPerson": false,
-        "competencyLookupField": "Competency",
-        "roleField": "Role",
-        "leaderRoleValue": "Leader"
+        "staffListTitle": "Team Structure",
+        "staffPersonField": "Resource",
+        "competencyLookupField": "Competency"
       }
     }
   ]

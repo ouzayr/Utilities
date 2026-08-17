@@ -16,18 +16,20 @@ Everything below is configurable in the web part property pane; these are the de
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `Title` | Single line of text | Competency name |
+| `Competency` | Title column (renamed) | Competency name — internal name stays `Title`, which is what the web part reads |
+| `Lead` | Person (multi) | The competency's leader(s), shown featured at the top of each card |
 | (optional) description field | Text / note | Set its internal name in the property pane to show it on each card |
 
-### Staff list (default title: `Staff`)
+### Team list (default title: `Team Structure`)
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `Title` (default) | Single line of text | Staff member's name. Can instead be a **Person** field — set its internal name and flip the "is a Person field" toggle |
-| `Competency` | Lookup → Competencies list | Single or multi-value lookups both work. One item per person; use a multi-value lookup (or multiple items) to tag someone to several competencies |
-| `Role` (optional) | Choice / text | People whose role equals the configured leader value (default `Leader`, case-insensitive) are shown as leaders of their competencies; everyone else is listed as staff. If the field doesn't exist the web part still works — everyone shows as staff |
+| `Resource` | Person | The team member |
+| `Competency` | Lookup → Competencies list | Single or multi-value lookups both work. Use a multi-value lookup (or multiple items) to tag someone to several competencies |
 
-> Use **internal names** for field settings in the property pane (visible in the field's settings page URL, `Field=...`), not display names.
+A person who is both a `Lead` and a `Resource` for the same competency is shown once, in the lead slot.
+
+> Use **internal names** for field settings in the property pane (visible in the field's settings page URL, `Field=...`), not display names. A renamed title column keeps the internal name `Title`.
 
 ## Getting started
 

@@ -3,8 +3,7 @@ import * as ReactDom from 'react-dom';
 import { Version } from '@microsoft/sp-core-library';
 import {
   type IPropertyPaneConfiguration,
-  PropertyPaneTextField,
-  PropertyPaneToggle
+  PropertyPaneTextField
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import type { IReadonlyTheme } from '@microsoft/sp-component-base';
@@ -18,13 +17,11 @@ import { CompetencyService } from './services/CompetencyService';
 export interface ICompetencyMatrixWebPartProps {
   title: string;
   competenciesListTitle: string;
+  leadField: string;
   competencyDescriptionField: string;
   staffListTitle: string;
-  staffNameField: string;
-  staffNameIsPerson: boolean;
+  staffPersonField: string;
   competencyLookupField: string;
-  roleField: string;
-  leaderRoleValue: string;
 }
 
 export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<ICompetencyMatrixWebPartProps> {
@@ -39,13 +36,11 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
   public render(): void {
     const service = new CompetencyService(this._sp, {
       competenciesListTitle: this.properties.competenciesListTitle || 'Competencies',
+      leadField: this.properties.leadField || 'Lead',
       competencyDescriptionField: this.properties.competencyDescriptionField,
-      staffListTitle: this.properties.staffListTitle || 'Staff',
-      staffNameField: this.properties.staffNameField || 'Title',
-      staffNameIsPerson: !!this.properties.staffNameIsPerson,
-      competencyLookupField: this.properties.competencyLookupField || 'Competency',
-      roleField: this.properties.roleField,
-      leaderRoleValue: this.properties.leaderRoleValue || 'Leader'
+      staffListTitle: this.properties.staffListTitle || 'Team Structure',
+      staffPersonField: this.properties.staffPersonField || 'Resource',
+      competencyLookupField: this.properties.competencyLookupField || 'Competency'
     });
 
     const element: React.ReactElement<ICompetencyMatrixProps> = React.createElement(CompetencyMatrix, {
@@ -102,6 +97,9 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
                 PropertyPaneTextField('competenciesListTitle', {
                   label: strings.CompetenciesListFieldLabel
                 }),
+                PropertyPaneTextField('leadField', {
+                  label: strings.LeadFieldLabel
+                }),
                 PropertyPaneTextField('competencyDescriptionField', {
                   label: strings.CompetencyDescriptionFieldLabel,
                   description: strings.OptionalFieldDescription
@@ -114,23 +112,11 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
                 PropertyPaneTextField('staffListTitle', {
                   label: strings.StaffListFieldLabel
                 }),
-                PropertyPaneTextField('staffNameField', {
-                  label: strings.StaffNameFieldLabel
-                }),
-                PropertyPaneToggle('staffNameIsPerson', {
-                  label: strings.StaffNameIsPersonLabel,
-                  onText: strings.StaffNameIsPersonOn,
-                  offText: strings.StaffNameIsPersonOff
+                PropertyPaneTextField('staffPersonField', {
+                  label: strings.StaffPersonFieldLabel
                 }),
                 PropertyPaneTextField('competencyLookupField', {
                   label: strings.CompetencyLookupFieldLabel
-                }),
-                PropertyPaneTextField('roleField', {
-                  label: strings.RoleFieldLabel,
-                  description: strings.OptionalFieldDescription
-                }),
-                PropertyPaneTextField('leaderRoleValue', {
-                  label: strings.LeaderRoleValueLabel
                 })
               ]
             }

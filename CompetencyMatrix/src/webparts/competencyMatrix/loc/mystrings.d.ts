@@ -5,15 +5,11 @@ declare interface ICompetencyMatrixWebPartStrings {
   StaffGroupName: string;
   TitleFieldLabel: string;
   CompetenciesListFieldLabel: string;
+  LeadFieldLabel: string;
   CompetencyDescriptionFieldLabel: string;
   StaffListFieldLabel: string;
-  StaffNameFieldLabel: string;
-  StaffNameIsPersonLabel: string;
-  StaffNameIsPersonOn: string;
-  StaffNameIsPersonOff: string;
+  StaffPersonFieldLabel: string;
   CompetencyLookupFieldLabel: string;
-  RoleFieldLabel: string;
-  LeaderRoleValueLabel: string;
   OptionalFieldDescription: string;
   DefaultTitle: string;
   SearchPlaceholder: string;
@@ -21,16 +17,22 @@ declare interface ICompetencyMatrixWebPartStrings {
   AllCompetenciesOption: string;
   LoadingText: string;
   LoadErrorText: string;
-  LeadersSectionLabel: string;
-  StaffSectionLabel: string;
-  NoLeadersText: string;
-  NoStaffText: string;
+  LeadSectionLabel: string;
+  LeadsSectionLabel: string;
+  TeamSectionLabel: string;
+  NoLeadText: string;
+  NoMembersText: string;
+  NoCompetenciesTitle: string;
   NoCompetenciesText: string;
+  NoSearchResultsTitle: string;
   NoSearchResultsText: string;
-  NoCompetencyForPersonText: string;
-  LeaderBadgeText: string;
+  LeadBadgeText: string;
+  MatchFoundLabel: string;
+  MatchesFoundLabel: string;
   CompetenciesCountLabel: string;
-  StaffCountLabel: string;
+  PeopleCountLabel: string;
+  PersonCountSuffix: string;
+  PeopleCountSuffix: string;
 }
 
 declare module 'CompetencyMatrixWebPartStrings' {
