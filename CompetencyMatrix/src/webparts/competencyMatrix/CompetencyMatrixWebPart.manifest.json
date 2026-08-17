@@ -1,0 +1,32 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "27ac00f8-d314-48fe-9700-de9b1696f0b4",
+  "alias": "CompetencyMatrixWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsFullBleed": true,
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "Advanced" },
+      "title": { "default": "Competency Matrix" },
+      "description": {
+        "default": "Displays competencies with their leaders and staff, with filtering and people search."
+      },
+      "officeFabricIconFontName": "Org",
+      "properties": {
+        "title": "Competency Matrix",
+        "competenciesListTitle": "Competencies",
+        "leadField": "Lead",
+        "competencyDescriptionField": "",
+        "staffListTitle": "Team Structure",
+        "staffPersonField": "Resource",
+        "competencyLookupField": "Competency"
+      }
+    }
+  ]
+}
