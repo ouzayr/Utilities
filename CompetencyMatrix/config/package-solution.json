@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "competency-matrix-client-side-solution",
+    "id": "f6b9754b-7573-4637-bebf-df6871c1c061",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Displays competencies with their leaders and staff, with filtering and people search."
+      },
+      "longDescription": {
+        "default": "Full-page Competency Matrix web part for SharePoint Online. Reads a Competencies list and a Staff list (linked via a lookup field) using PnPjs, groups staff under each competency, and supports filtering by competency and searching for a person to see which competencies they belong to."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "Competency Matrix Feature",
+        "description": "Deploys the Competency Matrix web part",
+        "id": "e8e29b74-f3fb-444f-bc09-6d9f8fe291dd",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/competency-matrix.sppkg"
+  }
+}

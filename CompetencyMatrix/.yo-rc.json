@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "18.19.0",
+    "sdkVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.24.0"
+    },
+    "version": "1.20.0",
+    "libraryName": "competency-matrix",
+    "libraryId": "f6b9754b-7573-4637-bebf-df6871c1c061",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "competency-matrix",
+    "solutionShortDescription": "Competency Matrix web part for SharePoint Online",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart",
+    "template": "react"
+  }
+}

@@ -1,0 +1,143 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.competencyMatrix {
+  width: 100%;
+  max-width: 100%;
+  padding: 20px 24px 40px;
+  box-sizing: border-box;
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText);
+
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 24px;
+
+    .titleArea {
+      flex: 1 1 260px;
+
+      .title {
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+
+      .subtitle {
+        font-size: 12px;
+        color: "[theme:neutralSecondary, default: #605e5c]";
+        margin: 0;
+      }
+    }
+
+    .searchBox {
+      flex: 1 1 280px;
+      max-width: 360px;
+    }
+
+    .filterDropdown {
+      flex: 0 1 260px;
+      min-width: 220px;
+    }
+  }
+
+  .personResults {
+    margin-bottom: 24px;
+    padding: 12px 16px;
+    border-radius: 4px;
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+
+    .personResultRow {
+      margin: 6px 0;
+      font-size: 14px;
+
+      .personName {
+        font-weight: 600;
+      }
+
+      .personCompetency {
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+        color: "[theme:themeDarkAlt, default: #106ebe]";
+
+        &.leaderChip {
+          background-color: "[theme:themeLighter, default: #deecf9]";
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    border: 1px solid "[theme:neutralLight, default: #edebe9]";
+    border-radius: 6px;
+    padding: 16px;
+    background-color: "[theme:white, default: #ffffff]";
+    box-shadow: 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.08);
+
+    .cardTitle {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+
+    .cardDescription {
+      font-size: 13px;
+      color: "[theme:neutralSecondary, default: #605e5c]";
+      margin: 0 0 12px;
+    }
+
+    .sectionLabel {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: "[theme:neutralSecondary, default: #605e5c]";
+      margin: 12px 0 8px;
+    }
+
+    .peopleList {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .personaWrapper {
+      padding: 2px 4px;
+      border-radius: 4px;
+
+      &.highlighted {
+        background-color: "[theme:themeLighter, default: #deecf9]";
+      }
+    }
+
+    .emptySection {
+      font-size: 12px;
+      font-style: italic;
+      color: "[theme:neutralTertiary, default: #a19f9d]";
+    }
+  }
+
+  .statusContainer {
+    padding: 40px 0;
+    text-align: center;
+  }
+
+  .emptyState {
+    padding: 40px 0;
+    text-align: center;
+    font-size: 14px;
+    color: "[theme:neutralSecondary, default: #605e5c]";
+  }
+}
