@@ -8,6 +8,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import type { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { spfi, SPFI, SPFx } from '@pnp/sp';
+import { initializeIcons } from '@fluentui/react/lib/Icons';
 
 import * as strings from 'CompetencyMatrixWebPartStrings';
 import CompetencyMatrix from './components/CompetencyMatrix';
@@ -22,6 +23,11 @@ export interface ICompetencyMatrixWebPartProps {
   staffListTitle: string;
   staffPersonField: string;
   competencyLookupField: string;
+  startDateField: string;
+  endDateField: string;
+  rbacListTitle: string;
+  rbacUserField: string;
+  rbacFlagField: string;
 }
 
 export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<ICompetencyMatrixWebPartProps> {
@@ -30,6 +36,7 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
 
   protected async onInit(): Promise<void> {
     await super.onInit();
+    initializeIcons(undefined, { disableWarnings: true });
     this._sp = spfi().using(SPFx(this.context));
   }
 
@@ -40,7 +47,12 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
       competencyDescriptionField: this.properties.competencyDescriptionField,
       staffListTitle: this.properties.staffListTitle || 'Team Structure',
       staffPersonField: this.properties.staffPersonField || 'Resource',
-      competencyLookupField: this.properties.competencyLookupField || 'Competency'
+      competencyLookupField: this.properties.competencyLookupField || 'Competency',
+      startDateField: this.properties.startDateField || 'Start Date',
+      endDateField: this.properties.endDateField || 'End Date',
+      rbacListTitle: this.properties.rbacListTitle || 'Features RBAC',
+      rbacUserField: this.properties.rbacUserField || 'User',
+      rbacFlagField: this.properties.rbacFlagField || 'OnBoarding'
     });
 
     const element: React.ReactElement<ICompetencyMatrixProps> = React.createElement(CompetencyMatrix, {
@@ -117,6 +129,26 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
                 }),
                 PropertyPaneTextField('competencyLookupField', {
                   label: strings.CompetencyLookupFieldLabel
+                }),
+                PropertyPaneTextField('startDateField', {
+                  label: strings.StartDateFieldLabel
+                }),
+                PropertyPaneTextField('endDateField', {
+                  label: strings.EndDateFieldLabel
+                })
+              ]
+            },
+            {
+              groupName: strings.RbacGroupName,
+              groupFields: [
+                PropertyPaneTextField('rbacListTitle', {
+                  label: strings.RbacListFieldLabel
+                }),
+                PropertyPaneTextField('rbacUserField', {
+                  label: strings.RbacUserFieldLabel
+                }),
+                PropertyPaneTextField('rbacFlagField', {
+                  label: strings.RbacFlagFieldLabel
                 })
               ]
             }

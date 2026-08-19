@@ -19,6 +19,14 @@ export interface IStaffMember {
   id: number;
   person: IPerson;
   competencies: IStaffCompetencyRef[];
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export interface IPersonSuggestion {
+  loginName: string;
+  name: string;
+  email?: string;
 }
 
 export interface ICompetencyGroup {

@@ -3,6 +3,7 @@ declare interface ICompetencyMatrixWebPartStrings {
   GeneralGroupName: string;
   CompetenciesGroupName: string;
   StaffGroupName: string;
+  RbacGroupName: string;
   TitleFieldLabel: string;
   CompetenciesListFieldLabel: string;
   LeadFieldLabel: string;
@@ -10,6 +11,11 @@ declare interface ICompetencyMatrixWebPartStrings {
   StaffListFieldLabel: string;
   StaffPersonFieldLabel: string;
   CompetencyLookupFieldLabel: string;
+  StartDateFieldLabel: string;
+  EndDateFieldLabel: string;
+  RbacListFieldLabel: string;
+  RbacUserFieldLabel: string;
+  RbacFlagFieldLabel: string;
   OptionalFieldDescription: string;
   DefaultTitle: string;
   SearchPlaceholder: string;
@@ -33,6 +39,33 @@ declare interface ICompetencyMatrixWebPartStrings {
   PeopleCountLabel: string;
   PersonCountSuffix: string;
   PeopleCountSuffix: string;
+  UpcomingBadgePrefix: string;
+  OnboardButtonText: string;
+  OffboardButtonText: string;
+  OnboardPanelTitle: string;
+  OffboardPanelTitle: string;
+  PersonPickerLabel: string;
+  PeopleSuggestionsHeaderText: string;
+  NoPeopleFoundText: string;
+  CompetenciesPickerLabel: string;
+  CompetenciesPickerPlaceholder: string;
+  StartDateLabel: string;
+  EndDateLabel: string;
+  OnboardSubmitText: string;
+  OffboardSubmitText: string;
+  CancelButtonText: string;
+  SavingText: string;
+  OnboardMissingFieldsText: string;
+  OffboardMissingFieldsText: string;
+  OnboardSuccessText: string;
+  OffboardSuccessText: string;
+  ActionErrorText: string;
+  OnboardHintText: string;
+  OffboardHintText: string;
+  OffboardPersonLabel: string;
+  OffboardPersonPlaceholder: string;
+  OffboardAffectedLabel: string;
+  NoStaffToOffboardText: string;
 }
 
 declare module 'CompetencyMatrixWebPartStrings' {
