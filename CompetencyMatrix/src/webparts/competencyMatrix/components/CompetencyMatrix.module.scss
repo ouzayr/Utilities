@@ -68,7 +68,18 @@
         width: 240px;
         max-width: 76vw;
       }
+
+      .manageButtons {
+        display: flex;
+        gap: 8px;
+        padding-left: 12px;
+        border-left: 1px solid "[theme:neutralLight, default: #edebe9]";
+      }
     }
+  }
+
+  .notice {
+    margin: 16px 32px 0;
   }
 
   .content {
@@ -240,6 +251,17 @@
       }
     }
 
+    .upcomingBadge {
+      display: inline-block;
+      margin: 2px 0 0 40px;
+      font-size: 11px;
+      line-height: 16px;
+      padding: 0 8px;
+      border-radius: 8px;
+      background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+      color: "[theme:themeDarkAlt, default: #106ebe]";
+    }
+
     .emptySection {
       font-size: 12px;
       font-style: italic;
@@ -278,4 +300,48 @@
       margin: 0;
     }
   }
+}
+
+/* Panel content renders in a Fluent portal outside .competencyMatrix,
+   so these classes must not be nested under the root class. */
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.panelLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 5px 0;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.panelHint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.panelFooter {
+  display: flex;
+  gap: 8px;
+}
+
+.panelChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panelChip {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 2px 12px;
+  border-radius: 12px;
+  background-color: "[theme:neutralLighter, default: #f3f2f1]";
+  color: "[theme:bodyText, default: #323130]";
 }

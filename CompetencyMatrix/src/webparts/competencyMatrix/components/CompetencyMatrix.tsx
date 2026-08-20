@@ -5,10 +5,13 @@ import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Persona, PersonaSize } from '@fluentui/react/lib/Persona';
+import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import * as strings from 'CompetencyMatrixWebPartStrings';
 import styles from './CompetencyMatrix.module.scss';
 import { ICompetencyMatrixProps } from './ICompetencyMatrixProps';
 import CompetencyCard, { personPhotoUrl } from './CompetencyCard';
+import OnboardPanel from './OnboardPanel';
+import OffboardPanel from './OffboardPanel';
 import { ICompetency, ICompetencyGroup, IPerson, IPersonMatch, IStaffMember } from '../models';
 
 const ALL_COMPETENCIES_KEY = -1;
@@ -39,15 +42,24 @@ const matchesPerson = (person: IPerson, term: string): boolean =>
   person.name.toLowerCase().indexOf(term) !== -1 ||
   (person.email || '').toLowerCase().indexOf(term) !== -1;
 
+const startOfToday = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
 const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props) => {
   const { service, title } = props;
 
   const [competencies, setCompetencies] = useState<ICompetency[]>([]);
   const [staff, setStaff] = useState<IStaffMember[]>([]);
+  const [canManage, setCanManage] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCompetencyId, setSelectedCompetencyId] = useState<number>(ALL_COMPETENCIES_KEY);
+  const [openPanel, setOpenPanel] = useState<'onboard' | 'offboard' | undefined>(undefined);
+  const [notice, setNotice] = useState<string | undefined>(undefined);
+  const [reloadToken, setReloadToken] = useState<number>(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,13 +68,15 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
       setLoading(true);
       setError(undefined);
       try {
-        const [loadedCompetencies, loadedStaff] = await Promise.all([
+        const [loadedCompetencies, loadedStaff, loadedCanManage] = await Promise.all([
           service.getCompetencies(),
-          service.getStaff()
+          service.getStaff(),
+          service.canManageStaff()
         ]);
         if (!cancelled) {
           setCompetencies(loadedCompetencies);
           setStaff(loadedStaff);
+          setCanManage(loadedCanManage);
         }
       } catch (e) {
         if (!cancelled) {
@@ -83,7 +97,28 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
     return () => {
       cancelled = true;
     };
-  }, [service]);
+  }, [service, reloadToken]);
+
+  // People whose End Date has passed are offboarded and disappear from the matrix.
+  const activeStaff = useMemo((): IStaffMember[] => {
+    const today = startOfToday();
+    return staff.filter((member) => !member.endDate || member.endDate >= today);
+  }, [staff]);
+
+  // Members with a future Start Date get a "from <date>" badge.
+  const upcomingByKey = useMemo((): { [key: string]: string } => {
+    const today = startOfToday();
+    const result: { [key: string]: string } = {};
+    activeStaff.forEach((member) => {
+      if (member.startDate && member.startDate > today) {
+        result[personKey(member.person)] = member.startDate.toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'short'
+        });
+      }
+    });
+    return result;
+  }, [activeStaff]);
 
   const groups = useMemo((): ICompetencyGroup[] => {
     return competencies.map((competency) => {
@@ -93,7 +128,7 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
       });
       const seen: { [key: string]: boolean } = {};
       const members: IPerson[] = [];
-      staff.forEach((member) => {
+      activeStaff.forEach((member) => {
         if (!member.competencies.some((c) => c.id === competency.id)) {
           return;
         }
@@ -107,7 +142,7 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
       });
       return { competency, members };
     });
-  }, [competencies, staff]);
+  }, [competencies, activeStaff]);
 
   const totalPeople = useMemo((): number => {
     const seen: { [key: string]: boolean } = {};
@@ -120,9 +155,9 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
       }
     };
     competencies.forEach((competency) => competency.leads.forEach(add));
-    staff.forEach((member) => add(member.person));
+    activeStaff.forEach((member) => add(member.person));
     return count;
-  }, [competencies, staff]);
+  }, [competencies, activeStaff]);
 
   const term = searchTerm.trim().toLowerCase();
 
@@ -153,12 +188,12 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
     competencies.forEach((competency) =>
       competency.leads.forEach((lead) => addEntry(lead, competency.id, competency.title, true))
     );
-    staff.forEach((member) =>
+    activeStaff.forEach((member) =>
       member.competencies.forEach((c) => addEntry(member.person, c.id, c.title, false))
     );
 
     return order.map((key) => matches[key]);
-  }, [competencies, staff, term]);
+  }, [competencies, activeStaff, term]);
 
   const visibleGroups = useMemo((): ICompetencyGroup[] => {
     let result = groups;
@@ -190,6 +225,12 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
     );
     return options;
   }, [competencies]);
+
+  const onActionSuccess = (message: string): void => {
+    setOpenPanel(undefined);
+    setNotice(message);
+    setReloadToken((token) => token + 1);
+  };
 
   return (
     <section className={styles.competencyMatrix}>
@@ -224,8 +265,35 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
               }
             />
           </div>
+          {canManage && (
+            <div className={styles.manageButtons}>
+              <PrimaryButton
+                text={strings.OnboardButtonText}
+                iconProps={{ iconName: 'AddFriend' }}
+                onClick={() => setOpenPanel('onboard')}
+                disabled={loading}
+              />
+              <DefaultButton
+                text={strings.OffboardButtonText}
+                iconProps={{ iconName: 'UserRemove' }}
+                onClick={() => setOpenPanel('offboard')}
+                disabled={loading}
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {notice && (
+        <div className={styles.notice}>
+          <MessageBar
+            messageBarType={MessageBarType.success}
+            onDismiss={() => setNotice(undefined)}
+          >
+            {notice}
+          </MessageBar>
+        </div>
+      )}
 
       <div className={styles.content}>
         {loading && (
@@ -291,11 +359,30 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
                 group={group}
                 accentColor={accentForTitle(group.competency.title)}
                 highlightTerm={term}
+                upcomingByKey={upcomingByKey}
               />
             ))}
           </div>
         )}
       </div>
+
+      {openPanel === 'onboard' && (
+        <OnboardPanel
+          service={service}
+          competencies={competencies}
+          onDismiss={() => setOpenPanel(undefined)}
+          onSuccess={onActionSuccess}
+        />
+      )}
+
+      {openPanel === 'offboard' && (
+        <OffboardPanel
+          service={service}
+          staff={activeStaff}
+          onDismiss={() => setOpenPanel(undefined)}
+          onSuccess={onActionSuccess}
+        />
+      )}
     </section>
   );
 };

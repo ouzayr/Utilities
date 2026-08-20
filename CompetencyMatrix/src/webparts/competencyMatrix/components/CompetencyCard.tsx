@@ -9,6 +9,8 @@ export interface ICompetencyCardProps {
   accentColor: string;
   /** Lower-cased search term used to highlight matching people. Empty when no search is active. */
   highlightTerm: string;
+  /** Formatted future start date per person key, for members who haven't started yet. */
+  upcomingByKey: { [key: string]: string };
 }
 
 export const personPhotoUrl = (person: IPerson): string | undefined =>
@@ -24,7 +26,8 @@ const matchesPerson = (person: IPerson, term: string): boolean =>
 const CompetencyCard: React.FunctionComponent<ICompetencyCardProps> = ({
   group,
   accentColor,
-  highlightTerm
+  highlightTerm,
+  upcomingByKey
 }) => {
   const { competency, members } = group;
   const totalPeople = competency.leads.length + members.length;
@@ -78,20 +81,28 @@ const CompetencyCard: React.FunctionComponent<ICompetencyCardProps> = ({
         <div className={styles.emptySection}>{strings.NoMembersText}</div>
       ) : (
         <div className={styles.memberGrid}>
-          {members.map((member, index) => (
-            <div
-              key={member.email || `${member.name}-${index}`}
-              className={`${styles.personaWrapper} ${
-                matchesPerson(member, highlightTerm) ? styles.highlighted : ''
-              }`}
-            >
-              <Persona
-                text={member.name}
-                size={PersonaSize.size32}
-                imageUrl={personPhotoUrl(member)}
-              />
-            </div>
-          ))}
+          {members.map((member, index) => {
+            const upcoming = upcomingByKey[(member.email || member.name).toLowerCase()];
+            return (
+              <div
+                key={member.email || `${member.name}-${index}`}
+                className={`${styles.personaWrapper} ${
+                  matchesPerson(member, highlightTerm) ? styles.highlighted : ''
+                }`}
+              >
+                <Persona
+                  text={member.name}
+                  size={PersonaSize.size32}
+                  imageUrl={personPhotoUrl(member)}
+                />
+                {upcoming && (
+                  <span className={styles.upcomingBadge}>
+                    {strings.UpcomingBadgePrefix} {upcoming}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

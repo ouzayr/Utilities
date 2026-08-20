@@ -26,8 +26,28 @@ Everything below is configurable in the web part property pane; these are the de
 | --- | --- | --- |
 | `Resource` | Person | The team member |
 | `Competency` | Lookup → Competencies list | Single or multi-value lookups both work. Use a multi-value lookup (or multiple items) to tag someone to several competencies |
+| `Start Date` | Date | Set by onboarding. A future start date shows a "from …" badge next to the person |
+| `End Date` | Date | Set by offboarding. Once the end date has passed, the person disappears from the matrix |
 
 A person who is both a `Lead` and a `Resource` for the same competency is shown once, in the lead slot.
+
+### RBAC list (default title: `Features RBAC`)
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `User` | Person | Who the rule applies to |
+| `OnBoarding` | Yes/No | `Yes` shows the **Onboard staff** / **Offboard staff** buttons to that user |
+
+## Onboarding and offboarding
+
+Users listed in `Features RBAC` with `OnBoarding = Yes` get two extra toolbar buttons:
+
+- **Onboard staff** — opens a panel with a people picker (searches the whole tenant), a multi-select of competencies and a start date. One `Team Structure` item is created per selected competency.
+- **Offboard staff** — opens a panel to pick an active team member and an end date (their last day). The end date is stamped on all of that person's items; they stay in the matrix until the date has passed, then drop out automatically. Their items are never deleted, so history is kept.
+
+For `Start Date` / `End Date` the web part resolves the internal name automatically (a column created as "Start Date" in the UI gets the internal name `Start_x0020_Date`); the property pane accepts either form.
+
+> **Security note:** the RBAC list only controls whether the buttons are *shown*. Writing to `Team Structure` still happens with the signed-in user's own permissions, so pair this with list permissions (contribute on `Team Structure` for onboarding users, read for everyone else) if enforcement matters.
 
 > Use **internal names** for field settings in the property pane (visible in the field's settings page URL, `Field=...`), not display names. A renamed title column keeps the internal name `Title`.
 

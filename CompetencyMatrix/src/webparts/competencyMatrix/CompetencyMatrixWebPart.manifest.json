@@ -25,7 +25,12 @@
         "competencyDescriptionField": "",
         "staffListTitle": "Team Structure",
         "staffPersonField": "Resource",
-        "competencyLookupField": "Competency"
+        "competencyLookupField": "Competency",
+        "startDateField": "Start Date",
+        "endDateField": "End Date",
+        "rbacListTitle": "Features RBAC",
+        "rbacUserField": "User",
+        "rbacFlagField": "OnBoarding"
       }
     }
   ]
