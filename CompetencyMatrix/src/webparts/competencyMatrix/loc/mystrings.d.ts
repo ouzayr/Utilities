@@ -7,6 +7,7 @@ declare interface ICompetencyMatrixWebPartStrings {
   TitleFieldLabel: string;
   CompetenciesListFieldLabel: string;
   LeadFieldLabel: string;
+  ManagerFieldLabel: string;
   CompetencyDescriptionFieldLabel: string;
   StaffListFieldLabel: string;
   StaffPersonFieldLabel: string;
@@ -25,8 +26,11 @@ declare interface ICompetencyMatrixWebPartStrings {
   LoadErrorText: string;
   LeadSectionLabel: string;
   LeadsSectionLabel: string;
+  ManagerSectionLabel: string;
+  ManagersSectionLabel: string;
   TeamSectionLabel: string;
   NoLeadText: string;
+  NoManagerText: string;
   NoMembersText: string;
   NoCompetenciesTitle: string;
   NoCompetenciesText: string;
@@ -66,6 +70,41 @@ declare interface ICompetencyMatrixWebPartStrings {
   OffboardPersonPlaceholder: string;
   OffboardAffectedLabel: string;
   NoStaffToOffboardText: string;
+  ContactDetailsLabel: string;
+  RankLabel: string;
+  MobileLabel: string;
+  WorkPhoneLabel: string;
+  EmailLabel: string;
+  OfficeLabel: string;
+  ReportsToLabel: string;
+  LoadingProfileText: string;
+  ShowAdditionalDetailsText: string;
+  HideAdditionalDetailsText: string;
+  ProfileSourceGraphText: string;
+  ProfileSourceSharePointText: string;
+  ProfileUnavailableText: string;
+  RefreshButtonText: string;
+  ExportButtonText: string;
+  ExportCurrentViewText: string;
+  ExportAllText: string;
+  ExportSelectionSuffix: string;
+  ExportAllSuffix: string;
+  ExportSheetName: string;
+  ExportHeaderCompetency: string;
+  ExportHeaderRole: string;
+  ExportHeaderName: string;
+  ExportHeaderEmail: string;
+  RoleLeadLabel: string;
+  RoleManagerLabel: string;
+  RoleMemberLabel: string;
+  CloseButtonText: string;
+  ChatInTeamsText: string;
+  SendEmailText: string;
+  MemberSinceLabel: string;
+  ModalLeadOfLabel: string;
+  ModalManagerOfLabel: string;
+  ModalMemberOfLabel: string;
+  NoCompetencyForPersonText: string;
 }
 
 declare module 'CompetencyMatrixWebPartStrings' {

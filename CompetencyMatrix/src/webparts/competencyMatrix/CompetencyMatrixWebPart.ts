@@ -14,11 +14,13 @@ import * as strings from 'CompetencyMatrixWebPartStrings';
 import CompetencyMatrix from './components/CompetencyMatrix';
 import type { ICompetencyMatrixProps } from './components/ICompetencyMatrixProps';
 import { CompetencyService } from './services/CompetencyService';
+import { ProfileService } from './services/ProfileService';
 
 export interface ICompetencyMatrixWebPartProps {
   title: string;
   competenciesListTitle: string;
   leadField: string;
+  managerField: string;
   competencyDescriptionField: string;
   staffListTitle: string;
   staffPersonField: string;
@@ -44,6 +46,7 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
     const service = new CompetencyService(this._sp, {
       competenciesListTitle: this.properties.competenciesListTitle || 'Competencies',
       leadField: this.properties.leadField || 'Lead',
+      managerField: this.properties.managerField || 'Manager',
       competencyDescriptionField: this.properties.competencyDescriptionField,
       staffListTitle: this.properties.staffListTitle || 'Team Structure',
       staffPersonField: this.properties.staffPersonField || 'Resource',
@@ -55,9 +58,12 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
       rbacFlagField: this.properties.rbacFlagField || 'OnBoarding'
     });
 
+    const profileService = new ProfileService(this._sp, this.context.msGraphClientFactory);
+
     const element: React.ReactElement<ICompetencyMatrixProps> = React.createElement(CompetencyMatrix, {
       title: this.properties.title,
       service: service,
+      profileService: profileService,
       isDarkTheme: this._isDarkTheme
     });
 
@@ -111,6 +117,9 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
                 }),
                 PropertyPaneTextField('leadField', {
                   label: strings.LeadFieldLabel
+                }),
+                PropertyPaneTextField('managerField', {
+                  label: strings.ManagerFieldLabel
                 }),
                 PropertyPaneTextField('competencyDescriptionField', {
                   label: strings.CompetencyDescriptionFieldLabel,
