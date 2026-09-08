@@ -3,7 +3,7 @@
   "solution": {
     "name": "competency-matrix-client-side-solution",
     "id": "f6b9754b-7573-4637-bebf-df6871c1c061",
-    "version": "1.1.0.0",
+    "version": "1.2.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -30,7 +30,13 @@
         "title": "Competency Matrix Feature",
         "description": "Deploys the Competency Matrix web part",
         "id": "e8e29b74-f3fb-444f-bc09-6d9f8fe291dd",
-        "version": "1.1.0.0"
+        "version": "1.2.0.0"
+      }
+    ],
+    "webApiPermissionRequests": [
+      {
+        "resource": "Microsoft Graph",
+        "scope": "User.Read.All"
       }
     ]
   },

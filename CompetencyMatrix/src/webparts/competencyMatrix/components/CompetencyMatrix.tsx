@@ -57,7 +57,7 @@ const startOfToday = (): Date => {
 };
 
 const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props) => {
-  const { service, title } = props;
+  const { service, profileService, title } = props;
 
   const [competencies, setCompetencies] = useState<ICompetency[]>([]);
   const [staff, setStaff] = useState<IStaffMember[]>([]);
@@ -478,6 +478,7 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
       {selectedMatch && (
         <PersonDetailsModal
           match={selectedMatch}
+          profileService={profileService}
           accentForTitle={accentForTitle}
           onDismiss={() => setSelectedPersonKey(undefined)}
         />

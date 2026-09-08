@@ -48,3 +48,25 @@ export interface IPersonMatch {
   entries: IPersonMatchEntry[];
   startDate?: Date;
 }
+
+export interface IProfileDetail {
+  label: string;
+  value: string;
+}
+
+export interface IUserProfile {
+  jobTitle?: string;
+  department?: string;
+  mobilePhone?: string;
+  businessPhone?: string;
+  officeLocation?: string;
+  manager?: {
+    name: string;
+    email?: string;
+    jobTitle?: string;
+  };
+  /** Everything else worth showing, rendered under "additional details". */
+  details: IProfileDetail[];
+  /** Where the data came from, so the UI can explain an empty profile. */
+  source: 'graph' | 'sharepoint' | 'none';
+}

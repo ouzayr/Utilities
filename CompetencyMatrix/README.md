@@ -52,9 +52,18 @@ For `Start Date` / `End Date` the web part resolves the internal name automatica
 
 ## Other features
 
-- **Person details** — clicking anyone on a card or in the search results opens a Teams-style modal with their large profile photo, email, when they joined the team, shortcuts to chat in Teams or send email, and every competency they belong to grouped by role.
+- **Person details** — clicking anyone on a card or in the search results opens a Teams-style modal with their large profile photo and directory profile: rank (job title), department, mobile and work phone, email, office, who they report to, when they joined the team, shortcuts to chat in Teams or send email, and every competency they belong to grouped by role. **Show additional details** expands everything else the directory returns (company, employee ID and type, address, usage location, preferred language, …).
 - **Export to Excel** — the toolbar's **Export** menu writes a real `.xlsx` with the columns **Competency, Role, Name, Email** (one row per person per competency). Choose *Export current view* to export exactly what the filter and search are showing, or *Export all competencies*. The workbook is generated in the browser with no external dependency.
 - **Refresh** — the refresh button re-reads both lists and updates the view in place, without reloading the page or the web part.
+
+### Where profile details come from
+
+The modal reads the person's Entra ID (Azure AD) profile through **Microsoft Graph**, which needs one permission approved once per tenant:
+
+1. Deploy the package, then open **SharePoint admin center → Advanced → API access**.
+2. Approve the pending request for **Microsoft Graph → `User.Read.All`** (declared in `config/package-solution.json`).
+
+Until that is approved — or if a Graph call fails — the web part automatically falls back to the **SharePoint user profile store**, which needs no extra consent but returns fewer properties (job title, department, phones, office, manager, skills, about). The expanded details section notes which source was used, and the modal still shows the list-based information if neither is available.
 
 > **Security note:** the RBAC list only controls whether the buttons are *shown*. Writing to `Team Structure` still happens with the signed-in user's own permissions, so pair this with list permissions (contribute on `Team Structure` for onboarding users, read for everyone else) if enforcement matters.
 
@@ -103,6 +112,7 @@ src/webparts/competencyMatrix/
 │   └── CompetencyMatrix.module.scss
 ├── services/
 │   ├── CompetencyService.ts          # All list access via PnPjs (@pnp/sp)
+│   ├── ProfileService.ts             # Entra ID profile via Graph, SP profile fallback
 │   └── ExcelExport.ts                # Dependency-free .xlsx writer
 ├── models/index.ts                   # ICompetency, IStaffMember, IPersonMatch, ...
 └── loc/                              # Localized strings

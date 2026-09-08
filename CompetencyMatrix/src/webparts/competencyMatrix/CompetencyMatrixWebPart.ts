@@ -14,6 +14,7 @@ import * as strings from 'CompetencyMatrixWebPartStrings';
 import CompetencyMatrix from './components/CompetencyMatrix';
 import type { ICompetencyMatrixProps } from './components/ICompetencyMatrixProps';
 import { CompetencyService } from './services/CompetencyService';
+import { ProfileService } from './services/ProfileService';
 
 export interface ICompetencyMatrixWebPartProps {
   title: string;
@@ -57,9 +58,12 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
       rbacFlagField: this.properties.rbacFlagField || 'OnBoarding'
     });
 
+    const profileService = new ProfileService(this._sp, this.context.msGraphClientFactory);
+
     const element: React.ReactElement<ICompetencyMatrixProps> = React.createElement(CompetencyMatrix, {
       title: this.properties.title,
       service: service,
+      profileService: profileService,
       isDarkTheme: this._isDarkTheme
     });
 
