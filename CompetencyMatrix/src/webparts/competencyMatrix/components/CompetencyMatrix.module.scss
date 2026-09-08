@@ -69,6 +69,14 @@
         max-width: 76vw;
       }
 
+      .refreshButton {
+        color: "[theme:neutralPrimary, default: #323130]";
+      }
+
+      .refreshSpinner {
+        width: 32px;
+      }
+
       .manageButtons {
         display: flex;
         gap: 8px;
@@ -241,25 +249,8 @@
       padding: 0 20px 20px;
     }
 
-    .personaWrapper {
-      padding: 3px 6px;
-      border-radius: 4px;
-      min-width: 0;
-
-      &.highlighted {
-        background-color: "[theme:themeLighter, default: #deecf9]";
-      }
-    }
-
-    .upcomingBadge {
-      display: inline-block;
-      margin: 2px 0 0 40px;
-      font-size: 11px;
-      line-height: 16px;
-      padding: 0 8px;
-      border-radius: 8px;
-      background-color: "[theme:themeLighterAlt, default: #eff6fc]";
-      color: "[theme:themeDarkAlt, default: #106ebe]";
+    .inlineEmpty {
+      padding-bottom: 0;
     }
 
     .emptySection {
@@ -272,6 +263,40 @@
     .leadEmpty {
       padding-bottom: 0;
     }
+  }
+
+  /* Used by ClickablePerson in both the cards and the search results,
+     so it stays at the root level rather than inside .card. */
+  .personaWrapper {
+    padding: 3px 6px;
+    border-radius: 4px;
+    min-width: 0;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+
+    &:hover {
+      background-color: "[theme:neutralLighter, default: #f3f2f1]";
+    }
+
+    &:focus-visible {
+      outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+      outline-offset: 1px;
+    }
+
+    &.highlighted {
+      background-color: "[theme:themeLighter, default: #deecf9]";
+    }
+  }
+
+  .upcomingBadge {
+    display: inline-block;
+    margin: 2px 0 0 40px;
+    font-size: 11px;
+    line-height: 16px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+    color: "[theme:themeDarkAlt, default: #106ebe]";
   }
 
   .statusContainer {
@@ -302,8 +327,144 @@
   }
 }
 
-/* Panel content renders in a Fluent portal outside .competencyMatrix,
+/* Panel and modal content render in a Fluent portal outside .competencyMatrix,
    so these classes must not be nested under the root class. */
+.modalContainer {
+  width: 380px;
+  max-width: 92vw;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modalHeader {
+  position: relative;
+  height: 96px;
+  background: linear-gradient(135deg, #0078d4 0%, #8764b8 100%);
+
+  .modalClose {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    color: #ffffff;
+
+    &:hover {
+      color: #ffffff;
+      background-color: rgba(255, 255, 255, 0.18);
+    }
+  }
+}
+
+.modalIdentity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 24px;
+  margin-top: -60px;
+
+  .modalPhoto {
+    border-radius: 50%;
+    border: 4px solid "[theme:white, default: #ffffff]";
+    background-color: "[theme:white, default: #ffffff]";
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  }
+
+  .modalName {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 12px 0 2px;
+    color: "[theme:bodyText, default: #323130]";
+  }
+
+  .modalEmail {
+    font-size: 13px;
+    color: "[theme:link, default: #0078d4]";
+    text-decoration: none;
+    word-break: break-all;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .modalMeta {
+    font-size: 12px;
+    color: "[theme:neutralSecondary, default: #605e5c]";
+    margin-top: 6px;
+  }
+}
+
+.modalActions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px 0;
+
+  .modalAction {
+    flex: 1 1 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 32px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: "[theme:themePrimary, default: #0078d4]";
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+
+    &:hover {
+      background-color: "[theme:neutralLight, default: #edebe9]";
+    }
+  }
+}
+
+.modalBody {
+  padding: 20px 24px 24px;
+
+  .modalEmpty {
+    font-size: 13px;
+    font-style: italic;
+    color: "[theme:neutralTertiary, default: #a19f9d]";
+  }
+
+  .modalGroup + .modalGroup {
+    margin-top: 16px;
+  }
+
+  .modalGroupLabel {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: "[theme:neutralSecondary, default: #605e5c]";
+    margin-bottom: 8px;
+  }
+
+  .modalChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .modalChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    line-height: 22px;
+    padding: 2px 12px;
+    border-radius: 12px;
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+    color: "[theme:bodyText, default: #323130]";
+
+    .chipDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+  }
+}
+
 .panelBody {
   display: flex;
   flex-direction: column;

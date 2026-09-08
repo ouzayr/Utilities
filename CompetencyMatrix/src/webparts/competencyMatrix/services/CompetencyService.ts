@@ -2,6 +2,7 @@ import { SPFI } from '@pnp/sp';
 import '@pnp/sp/webs';
 import '@pnp/sp/lists';
 import '@pnp/sp/items';
+import '@pnp/sp/fields';
 import '@pnp/sp/site-users/web';
 import '@pnp/sp/profiles';
 import {
@@ -15,146 +16,115 @@ import {
 export interface ICompetencyServiceConfig {
   /** Display title of the list that holds one item per competency. */
   competenciesListTitle: string;
-  /** Internal name of the multi-person "Lead" field on the competencies list. */
+  /** Name of the multi-person "Lead" field on the competencies list. */
   leadField: string;
-  /** Internal name of an optional description field on the competencies list. */
+  /** Name of the person "Manager" field on the competencies list. */
+  managerField: string;
+  /** Name of an optional description field on the competencies list. */
   competencyDescriptionField?: string;
   /** Display title of the list that holds one item per team member. */
   staffListTitle: string;
-  /** Internal name of the person field on the staff list (e.g. Resource). */
+  /** Name of the person field on the staff list (e.g. Resource). */
   staffPersonField: string;
-  /** Internal name of the lookup field on the staff list pointing to the competencies list. */
+  /** Name of the lookup field on the staff list pointing to the competencies list. */
   competencyLookupField: string;
-  /** Name of the start date field on the staff list (display or internal). */
+  /** Name of the start date field on the staff list. */
   startDateField: string;
-  /** Name of the end date field on the staff list (display or internal). */
+  /** Name of the end date field on the staff list. */
   endDateField: string;
   /** Display title of the list that grants access to onboarding/offboarding. */
   rbacListTitle: string;
-  /** Internal name of the person field on the RBAC list. */
+  /** Name of the person field on the RBAC list. */
   rbacUserField: string;
-  /** Internal name of the yes/no field on the RBAC list that enables the feature. */
+  /** Name of the yes/no field on the RBAC list that enables the feature. */
   rbacFlagField: string;
+}
+
+interface IFieldInfo {
+  InternalName: string;
+  Title: string;
 }
 
 const PAGE_SIZE = 2000;
 
 export class CompetencyService {
-  /** Resolved internal names of the date fields, discovered on the first staff read. */
+  /** Internal field names per list title, resolved once per list. */
+  private fieldCache: { [listTitle: string]: IFieldInfo[] } = {};
+  /** Resolved internal names of the staff date fields. */
   private resolvedStartField: string | undefined;
   private resolvedEndField: string | undefined;
-  /** Whether the competency lookup accepts multiple values, discovered on the first write. */
-  private lookupIsMulti: boolean | undefined;
 
   constructor(private readonly sp: SPFI, private readonly config: ICompetencyServiceConfig) {}
 
   public async getCompetencies(): Promise<ICompetency[]> {
-    const list = this.sp.web.lists.getByTitle(this.config.competenciesListTitle.trim());
-    const leadField = (this.config.leadField || 'Lead').trim();
-    const descField = (this.config.competencyDescriptionField || '').trim();
+    const listTitle = this.config.competenciesListTitle.trim();
+    const list = this.sp.web.lists.getByTitle(listTitle);
+    const fields = await this.getFields(listTitle);
 
-    const buildQuery = (withDesc: boolean, withLead: boolean): { select: string[]; expand: string[] } => {
-      const select: string[] = ['Id', 'Title'];
-      const expand: string[] = [];
-      if (withDesc && descField) {
-        select.push(descField);
-      }
-      if (withLead) {
-        select.push(`${leadField}/Title`, `${leadField}/EMail`);
-        expand.push(leadField);
-      }
-      return { select, expand };
-    };
+    const leadField = this.resolveField(fields, this.config.leadField, 'Lead');
+    const managerField = this.resolveField(fields, this.config.managerField, 'Manager');
+    const descField = this.config.competencyDescriptionField
+      ? this.resolveField(fields, this.config.competencyDescriptionField)
+      : undefined;
 
-    // Degrade gracefully when the optional/renamed fields don't match the list:
-    // full query, then without description, then without lead.
-    const attempts: Array<{ withDesc: boolean; withLead: boolean }> = [
-      { withDesc: true, withLead: true },
-      { withDesc: false, withLead: true },
-      { withDesc: false, withLead: false }
-    ];
-
-    let items: any[] | undefined;
-    let lastError: unknown;
-    for (const attempt of attempts) {
-      try {
-        const q = buildQuery(attempt.withDesc, attempt.withLead);
-        let query = list.items.select(...q.select);
-        if (q.expand.length > 0) {
-          query = query.expand(...q.expand);
-        }
-        items = await this.getAllItems(query);
-        break;
-      } catch (e) {
-        lastError = e;
+    const select: string[] = ['Id', 'Title'];
+    const expand: string[] = [];
+    [leadField, managerField].forEach((field) => {
+      if (field) {
+        select.push(`${field}/Title`, `${field}/EMail`);
+        expand.push(field);
       }
+    });
+    if (descField) {
+      select.push(descField);
     }
-    if (!items) {
-      throw lastError;
+
+    let query = list.items.select(...select);
+    if (expand.length > 0) {
+      query = query.expand(...expand);
     }
+    const items = await this.getAllItems(query);
 
     return items
       .map((item): ICompetency => ({
         id: item.Id,
         title: item.Title || '',
         description: descField ? item[descField] || undefined : undefined,
-        leads: this.normalizePersons(item[leadField])
+        leads: leadField ? this.normalizePersons(item[leadField]) : [],
+        managers: managerField ? this.normalizePersons(item[managerField]) : []
       }))
       .filter((competency) => competency.title.length > 0)
       .sort((a, b) => a.title.localeCompare(b.title));
   }
 
   public async getStaff(): Promise<IStaffMember[]> {
-    const list = this.sp.web.lists.getByTitle(this.config.staffListTitle.trim());
-    const personField = (this.config.staffPersonField || 'Resource').trim();
-    const lookupField = (this.config.competencyLookupField || 'Competency').trim();
+    const listTitle = this.config.staffListTitle.trim();
+    const list = this.sp.web.lists.getByTitle(listTitle);
+    const fields = await this.getFields(listTitle);
 
-    const baseSelect = [
+    const personField = this.resolveField(fields, this.config.staffPersonField, 'Resource') || 'Resource';
+    const lookupField =
+      this.resolveField(fields, this.config.competencyLookupField, 'Competency') || 'Competency';
+    this.resolvedStartField = this.resolveField(fields, this.config.startDateField, 'Start Date');
+    this.resolvedEndField = this.resolveField(fields, this.config.endDateField, 'End Date');
+
+    const select: string[] = [
       'Id',
       `${personField}/Title`,
       `${personField}/EMail`,
       `${lookupField}/Id`,
       `${lookupField}/Title`
     ];
+    if (this.resolvedStartField) {
+      select.push(this.resolvedStartField);
+    }
+    if (this.resolvedEndField) {
+      select.push(this.resolvedEndField);
+    }
 
-    // "Start Date" created through the SharePoint UI gets internal name
-    // Start_x0020_Date - try the likely internal-name variants, then no dates at all.
-    const startVariants = this.fieldNameVariants(this.config.startDateField || 'Start Date');
-    const endVariants = this.fieldNameVariants(this.config.endDateField || 'End Date');
-    const attempts: Array<{ start?: string; end?: string }> = [];
-    const variantCount = Math.max(startVariants.length, endVariants.length);
-    for (let i = 0; i < variantCount; i++) {
-      attempts.push({
-        start: startVariants[Math.min(i, startVariants.length - 1)],
-        end: endVariants[Math.min(i, endVariants.length - 1)]
-      });
-    }
-    attempts.push({});
-
-    let items: any[] | undefined;
-    let lastError: unknown;
-    for (const attempt of attempts) {
-      try {
-        const select = [...baseSelect];
-        if (attempt.start) {
-          select.push(attempt.start);
-        }
-        if (attempt.end) {
-          select.push(attempt.end);
-        }
-        items = await this.getAllItems(
-          list.items.select(...select).expand(personField, lookupField)
-        );
-        this.resolvedStartField = attempt.start;
-        this.resolvedEndField = attempt.end;
-        break;
-      } catch (e) {
-        lastError = e;
-      }
-    }
-    if (!items) {
-      throw lastError;
-    }
+    const items = await this.getAllItems(
+      list.items.select(...select).expand(personField, lookupField)
+    );
 
     return items
       .map((item): IStaffMember => {
@@ -177,15 +147,15 @@ export class CompetencyService {
    */
   public async canManageStaff(): Promise<boolean> {
     try {
-      const userField = (this.config.rbacUserField || 'User').trim();
-      const flagField = (this.config.rbacFlagField || 'OnBoarding').trim();
-      const list = this.sp.web.lists.getByTitle((this.config.rbacListTitle || 'Features RBAC').trim());
+      const listTitle = (this.config.rbacListTitle || 'Features RBAC').trim();
+      const list = this.sp.web.lists.getByTitle(listTitle);
+      const fields = await this.getFields(listTitle);
+      const userField = this.resolveField(fields, this.config.rbacUserField, 'User') || 'User';
+      const flagField = this.resolveField(fields, this.config.rbacFlagField, 'OnBoarding') || 'OnBoarding';
 
       const me: any = await this.sp.web.currentUser.select('Id', 'Email')();
       const items = await this.getAllItems(
-        list.items
-          .select('Id', flagField, `${userField}/Id`, `${userField}/EMail`)
-          .expand(userField)
+        list.items.select('Id', flagField, `${userField}/Id`, `${userField}/EMail`).expand(userField)
       );
 
       return items.some((item) => {
@@ -223,69 +193,115 @@ export class CompetencyService {
     }));
   }
 
-  /** Creates one staff item per selected competency for the given person. */
+  /**
+   * Creates a single staff item holding every selected competency. Falls back to
+   * one item per competency when the lookup column only accepts a single value.
+   */
   public async onboardStaff(loginName: string, competencyIds: number[], startDate: Date): Promise<void> {
-    const list = this.sp.web.lists.getByTitle(this.config.staffListTitle.trim());
-    const personField = (this.config.staffPersonField || 'Resource').trim();
-    const lookupField = (this.config.competencyLookupField || 'Competency').trim();
+    const listTitle = this.config.staffListTitle.trim();
+    const list = this.sp.web.lists.getByTitle(listTitle);
+    const fields = await this.getFields(listTitle);
+    const personField = this.resolveField(fields, this.config.staffPersonField, 'Resource') || 'Resource';
+    const lookupField =
+      this.resolveField(fields, this.config.competencyLookupField, 'Competency') || 'Competency';
+    const startField =
+      this.resolvedStartField || this.resolveField(fields, this.config.startDateField, 'Start Date');
 
     const ensured: any = await this.sp.web.ensureUser(loginName);
     // PnPjs v3 wraps the result in .data; v4 returns the user info directly.
     const userId: number = (ensured && ensured.data && ensured.data.Id) || ensured.Id;
-
-    const startField =
-      this.resolvedStartField || this.fieldNameVariants(this.config.startDateField || 'Start Date')[0];
 
     const base: any = { [`${personField}Id`]: userId };
     if (startField) {
       base[startField] = startDate.toISOString();
     }
 
+    // Multi-value lookups take { results: [...] }; some configurations accept a
+    // plain array. Single-value columns reject both, so fall back to one item each.
+    const payloads = [
+      { ...base, [`${lookupField}Id`]: { results: competencyIds } },
+      { ...base, [`${lookupField}Id`]: competencyIds }
+    ];
+
+    for (const payload of payloads) {
+      try {
+        await list.items.add(payload);
+        return;
+      } catch {
+        /* try the next shape */
+      }
+    }
+
     for (const competencyId of competencyIds) {
-      await this.addStaffItem(list, base, lookupField, competencyId);
+      await list.items.add({ ...base, [`${lookupField}Id`]: competencyId });
     }
   }
 
   /** Stamps the end date on the given staff items. */
   public async offboardStaff(itemIds: number[], endDate: Date): Promise<void> {
+    const listTitle = this.config.staffListTitle.trim();
+    const list = this.sp.web.lists.getByTitle(listTitle);
+    const fields = await this.getFields(listTitle);
     const endField =
-      this.resolvedEndField || this.fieldNameVariants(this.config.endDateField || 'End Date')[0];
+      this.resolvedEndField || this.resolveField(fields, this.config.endDateField, 'End Date');
     if (!endField) {
       throw new Error(`End date field "${this.config.endDateField}" was not found.`);
     }
-    const list = this.sp.web.lists.getByTitle(this.config.staffListTitle.trim());
     for (const itemId of itemIds) {
       await list.items.getById(itemId).update({ [endField]: endDate.toISOString() });
     }
   }
 
-  /** Single-value lookups take CompetencyId: n, multi-value take CompetencyId: [n]. */
-  private async addStaffItem(list: any, base: any, lookupField: string, competencyId: number): Promise<void> {
-    if (this.lookupIsMulti !== true) {
-      try {
-        await list.items.add({ ...base, [`${lookupField}Id`]: competencyId });
-        this.lookupIsMulti = false;
-        return;
-      } catch (e) {
-        if (this.lookupIsMulti === false) {
-          throw e;
-        }
-      }
+  /** Internal names and titles of a list's fields, fetched once per list. */
+  private async getFields(listTitle: string): Promise<IFieldInfo[]> {
+    if (this.fieldCache[listTitle]) {
+      return this.fieldCache[listTitle];
     }
-    await list.items.add({ ...base, [`${lookupField}Id`]: [competencyId] });
-    this.lookupIsMulti = true;
+    try {
+      const fields: IFieldInfo[] = await this.sp.web.lists
+        .getByTitle(listTitle)
+        .fields.select('InternalName', 'Title')();
+      this.fieldCache[listTitle] = fields || [];
+    } catch {
+      this.fieldCache[listTitle] = [];
+    }
+    return this.fieldCache[listTitle];
   }
 
-  /** Likely internal-name variants for a field configured by display name. */
-  private fieldNameVariants(name: string): string[] {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) {
-      return [];
+  /**
+   * Resolves a configured field name to its internal name. Matches the internal
+   * name, the encoded form ("Start Date" -> Start_x0020_Date) and the display title,
+   * so the property pane accepts either form.
+   */
+  private resolveField(
+    fields: IFieldInfo[],
+    configured: string | undefined,
+    fallback?: string
+  ): string | undefined {
+    const candidates = [configured, fallback]
+      .map((value) => (value || '').trim())
+      .filter((value) => value.length > 0);
+
+    for (const candidate of candidates) {
+      const encoded = candidate.replace(/ /g, '_x0020_');
+      const lower = candidate.toLowerCase();
+
+      const byInternal = fields.filter(
+        (field) => field.InternalName === candidate || field.InternalName === encoded
+      )[0];
+      if (byInternal) {
+        return byInternal.InternalName;
+      }
+      const byTitle = fields.filter((field) => (field.Title || '').toLowerCase() === lower)[0];
+      if (byTitle) {
+        return byTitle.InternalName;
+      }
+      // No field metadata available (e.g. the fields call failed) - trust the config.
+      if (fields.length === 0) {
+        return candidate.indexOf(' ') !== -1 ? encoded : candidate;
+      }
     }
-    if (trimmed.indexOf(' ') !== -1) {
-      return [trimmed.replace(/ /g, '_x0020_'), trimmed.replace(/ /g, '')];
-    }
-    return [trimmed];
+    return undefined;
   }
 
   private parseDate(value: any): Date | undefined {

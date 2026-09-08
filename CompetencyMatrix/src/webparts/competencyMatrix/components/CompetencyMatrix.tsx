@@ -1,18 +1,27 @@
 import * as React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
-import { Persona, PersonaSize } from '@fluentui/react/lib/Persona';
-import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { PersonaSize } from '@fluentui/react/lib/Persona';
+import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import * as strings from 'CompetencyMatrixWebPartStrings';
 import styles from './CompetencyMatrix.module.scss';
 import { ICompetencyMatrixProps } from './ICompetencyMatrixProps';
-import CompetencyCard, { personPhotoUrl } from './CompetencyCard';
+import CompetencyCard, { ClickablePerson } from './CompetencyCard';
+import PersonDetailsModal, { roleLabel } from './PersonDetailsModal';
 import OnboardPanel from './OnboardPanel';
 import OffboardPanel from './OffboardPanel';
-import { ICompetency, ICompetencyGroup, IPerson, IPersonMatch, IStaffMember } from '../models';
+import { downloadWorkbook } from '../services/ExcelExport';
+import {
+  ICompetency,
+  ICompetencyGroup,
+  IPerson,
+  IPersonMatch,
+  IStaffMember,
+  PersonRole
+} from '../models';
 
 const ALL_COMPETENCIES_KEY = -1;
 
@@ -54,18 +63,26 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
   const [staff, setStaff] = useState<IStaffMember[]>([]);
   const [canManage, setCanManage] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCompetencyId, setSelectedCompetencyId] = useState<number>(ALL_COMPETENCIES_KEY);
   const [openPanel, setOpenPanel] = useState<'onboard' | 'offboard' | undefined>(undefined);
+  const [selectedPersonKey, setSelectedPersonKey] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const [reloadToken, setReloadToken] = useState<number>(0);
+  const hasLoadedOnce = useRef<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async (): Promise<void> => {
-      setLoading(true);
+      // Only the first load blanks the view; refreshes update in place.
+      if (hasLoadedOnce.current) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(undefined);
       try {
         const [loadedCompetencies, loadedStaff, loadedCanManage] = await Promise.all([
@@ -85,7 +102,9 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
         }
       } finally {
         if (!cancelled) {
+          hasLoadedOnce.current = true;
           setLoading(false);
+          setRefreshing(false);
         }
       }
     };
@@ -122,10 +141,15 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
 
   const groups = useMemo((): ICompetencyGroup[] => {
     return competencies.map((competency) => {
-      const leadKeys: { [key: string]: boolean } = {};
+      // Leads and managers are shown in their own sections, never again under Team.
+      const featured: { [key: string]: boolean } = {};
       competency.leads.forEach((lead) => {
-        leadKeys[personKey(lead)] = true;
+        featured[personKey(lead)] = true;
       });
+      competency.managers.forEach((manager) => {
+        featured[personKey(manager)] = true;
+      });
+
       const seen: { [key: string]: boolean } = {};
       const members: IPerson[] = [];
       activeStaff.forEach((member) => {
@@ -133,8 +157,7 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
           return;
         }
         const key = personKey(member.person);
-        // A lead may also appear in Team Structure - show them once, in the lead slot.
-        if (leadKeys[key] || seen[key]) {
+        if (featured[key] || seen[key]) {
           return;
         }
         seen[key] = true;
@@ -144,20 +167,51 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
     });
   }, [competencies, activeStaff]);
 
-  const totalPeople = useMemo((): number => {
-    const seen: { [key: string]: boolean } = {};
-    let count = 0;
-    const add = (person: IPerson): void => {
+  /** Every person with the competencies they belong to and the role they hold in each. */
+  const peopleIndex = useMemo((): { [key: string]: IPersonMatch } => {
+    const index: { [key: string]: IPersonMatch } = {};
+
+    const addEntry = (
+      person: IPerson,
+      competencyId: number,
+      competencyTitle: string,
+      role: PersonRole,
+      startDate?: Date
+    ): void => {
       const key = personKey(person);
-      if (!seen[key]) {
-        seen[key] = true;
-        count++;
+      if (!index[key]) {
+        index[key] = { person, entries: [], startDate };
       }
+      if (startDate && !index[key].startDate) {
+        index[key].startDate = startDate;
+      }
+      const existing = index[key].entries.filter((entry) => entry.competencyId === competencyId)[0];
+      if (existing) {
+        // Lead outranks manager, which outranks plain membership.
+        if (role === 'lead' || (role === 'manager' && existing.role === 'member')) {
+          existing.role = role;
+        }
+        return;
+      }
+      index[key].entries.push({ competencyId, title: competencyTitle, role });
     };
-    competencies.forEach((competency) => competency.leads.forEach(add));
-    activeStaff.forEach((member) => add(member.person));
-    return count;
+
+    competencies.forEach((competency) => {
+      competency.leads.forEach((lead) => addEntry(lead, competency.id, competency.title, 'lead'));
+      competency.managers.forEach((manager) =>
+        addEntry(manager, competency.id, competency.title, 'manager')
+      );
+    });
+    activeStaff.forEach((member) =>
+      member.competencies.forEach((c) =>
+        addEntry(member.person, c.id, c.title, 'member', member.startDate)
+      )
+    );
+
+    return index;
   }, [competencies, activeStaff]);
+
+  const totalPeople = useMemo((): number => Object.keys(peopleIndex).length, [peopleIndex]);
 
   const term = searchTerm.trim().toLowerCase();
 
@@ -165,35 +219,11 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
     if (!term) {
       return [];
     }
-    const matches: { [key: string]: IPersonMatch } = {};
-    const order: string[] = [];
-
-    const addEntry = (person: IPerson, competencyId: number, competencyTitle: string, isLead: boolean): void => {
-      if (!matchesPerson(person, term)) {
-        return;
-      }
-      const key = personKey(person);
-      if (!matches[key]) {
-        matches[key] = { person, entries: [] };
-        order.push(key);
-      }
-      const existing = matches[key].entries.filter((entry) => entry.competencyId === competencyId)[0];
-      if (existing) {
-        existing.isLead = existing.isLead || isLead;
-        return;
-      }
-      matches[key].entries.push({ competencyId, title: competencyTitle, isLead });
-    };
-
-    competencies.forEach((competency) =>
-      competency.leads.forEach((lead) => addEntry(lead, competency.id, competency.title, true))
-    );
-    activeStaff.forEach((member) =>
-      member.competencies.forEach((c) => addEntry(member.person, c.id, c.title, false))
-    );
-
-    return order.map((key) => matches[key]);
-  }, [competencies, activeStaff, term]);
+    return Object.keys(peopleIndex)
+      .map((key) => peopleIndex[key])
+      .filter((match) => matchesPerson(match.person, term))
+      .sort((a, b) => a.person.name.localeCompare(b.person.name));
+  }, [peopleIndex, term]);
 
   const visibleGroups = useMemo((): ICompetencyGroup[] => {
     let result = groups;
@@ -226,11 +256,68 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
     return options;
   }, [competencies]);
 
+  /** One row per person per competency: Competency, Role, Name, Email. */
+  const exportGroups = useCallback(
+    (groupsToExport: ICompetencyGroup[], fileSuffix: string): void => {
+      const rows: string[][] = [
+        [strings.ExportHeaderCompetency, strings.ExportHeaderRole, strings.ExportHeaderName, strings.ExportHeaderEmail]
+      ];
+
+      groupsToExport.forEach((group) => {
+        const push = (person: IPerson, role: PersonRole): void => {
+          rows.push([group.competency.title, roleLabel(role), person.name, person.email || '']);
+        };
+        group.competency.leads.forEach((lead) => push(lead, 'lead'));
+        group.competency.managers.forEach((manager) => push(manager, 'manager'));
+        group.members.forEach((member) => push(member, 'member'));
+      });
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadWorkbook(rows, `Competency Matrix - ${fileSuffix} - ${stamp}.xlsx`, {
+        sheetName: strings.ExportSheetName,
+        widths: [34, 16, 28, 34]
+      });
+    },
+    []
+  );
+
+  const exportMenuProps = useMemo(
+    () => ({
+      items: [
+        {
+          key: 'current',
+          text: `${strings.ExportCurrentViewText} (${visibleGroups.length})`,
+          iconProps: { iconName: 'FilterSolid' },
+          disabled: visibleGroups.length === 0,
+          onClick: () => {
+            exportGroups(visibleGroups, strings.ExportSelectionSuffix);
+          }
+        },
+        {
+          key: 'all',
+          text: `${strings.ExportAllText} (${groups.length})`,
+          iconProps: { iconName: 'Table' },
+          disabled: groups.length === 0,
+          onClick: () => {
+            exportGroups(groups, strings.ExportAllSuffix);
+          }
+        }
+      ]
+    }),
+    [visibleGroups, groups, exportGroups]
+  );
+
   const onActionSuccess = (message: string): void => {
     setOpenPanel(undefined);
     setNotice(message);
     setReloadToken((token) => token + 1);
   };
+
+  const onPersonClick = useCallback((person: IPerson): void => {
+    setSelectedPersonKey(personKey(person));
+  }, []);
+
+  const selectedMatch = selectedPersonKey ? peopleIndex[selectedPersonKey] : undefined;
 
   return (
     <section className={styles.competencyMatrix}>
@@ -265,6 +352,24 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
               }
             />
           </div>
+          {refreshing ? (
+            <Spinner className={styles.refreshSpinner} size={SpinnerSize.small} />
+          ) : (
+            <IconButton
+              className={styles.refreshButton}
+              iconProps={{ iconName: 'Refresh' }}
+              title={strings.RefreshButtonText}
+              ariaLabel={strings.RefreshButtonText}
+              onClick={() => setReloadToken((token) => token + 1)}
+              disabled={loading}
+            />
+          )}
+          <DefaultButton
+            text={strings.ExportButtonText}
+            iconProps={{ iconName: 'ExcelDocument' }}
+            menuProps={exportMenuProps}
+            disabled={loading || groups.length === 0}
+          />
           {canManage && (
             <div className={styles.manageButtons}>
               <PrimaryButton
@@ -311,27 +416,30 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
         {!loading && !error && term.length > 0 && personMatches.length > 0 && (
           <div className={styles.searchSummary}>
             <div className={styles.summaryHeading}>
-              {personMatches.length} {personMatches.length === 1 ? strings.MatchFoundLabel : strings.MatchesFoundLabel}
+              {personMatches.length}{' '}
+              {personMatches.length === 1 ? strings.MatchFoundLabel : strings.MatchesFoundLabel}
             </div>
             {personMatches.map((match) => (
               <div key={personKey(match.person)} className={styles.matchRow}>
                 <div className={styles.matchPersona}>
-                  <Persona
-                    text={match.person.name}
-                    secondaryText={match.person.email}
+                  <ClickablePerson
+                    person={match.person}
                     size={PersonaSize.size40}
-                    imageUrl={personPhotoUrl(match.person)}
+                    showSecondaryText={true}
+                    onClick={onPersonClick}
                   />
                 </div>
                 <div className={styles.matchChips}>
                   {match.entries.map((entry) => (
-                    <span key={entry.competencyId} className={styles.chip}>
+                    <span key={`${entry.role}-${entry.competencyId}`} className={styles.chip}>
                       <span
                         className={styles.chipDot}
                         style={{ backgroundColor: accentForTitle(entry.title) }}
                       />
                       {entry.title}
-                      {entry.isLead && <span className={styles.chipLead}>{strings.LeadBadgeText}</span>}
+                      {entry.role !== 'member' && (
+                        <span className={styles.chipLead}>{roleLabel(entry.role)}</span>
+                      )}
                     </span>
                   ))}
                 </div>
@@ -360,11 +468,20 @@ const CompetencyMatrix: React.FunctionComponent<ICompetencyMatrixProps> = (props
                 accentColor={accentForTitle(group.competency.title)}
                 highlightTerm={term}
                 upcomingByKey={upcomingByKey}
+                onPersonClick={onPersonClick}
               />
             ))}
           </div>
         )}
       </div>
+
+      {selectedMatch && (
+        <PersonDetailsModal
+          match={selectedMatch}
+          accentForTitle={accentForTitle}
+          onDismiss={() => setSelectedPersonKey(undefined)}
+        />
+      )}
 
       {openPanel === 'onboard' && (
         <OnboardPanel

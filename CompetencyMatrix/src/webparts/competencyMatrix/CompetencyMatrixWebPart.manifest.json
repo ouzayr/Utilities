@@ -22,6 +22,7 @@
         "title": "Competency Matrix",
         "competenciesListTitle": "Competencies",
         "leadField": "Lead",
+        "managerField": "Manager",
         "competencyDescriptionField": "",
         "staffListTitle": "Team Structure",
         "staffPersonField": "Resource",

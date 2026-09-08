@@ -8,6 +8,7 @@ export interface ICompetency {
   title: string;
   description?: string;
   leads: IPerson[];
+  managers: IPerson[];
 }
 
 export interface IStaffCompetencyRef {
@@ -34,13 +35,16 @@ export interface ICompetencyGroup {
   members: IPerson[];
 }
 
+export type PersonRole = 'lead' | 'manager' | 'member';
+
 export interface IPersonMatchEntry {
   competencyId: number;
   title: string;
-  isLead: boolean;
+  role: PersonRole;
 }
 
 export interface IPersonMatch {
   person: IPerson;
   entries: IPersonMatchEntry[];
+  startDate?: Date;
 }

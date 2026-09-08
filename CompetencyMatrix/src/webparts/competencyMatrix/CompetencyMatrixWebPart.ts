@@ -19,6 +19,7 @@ export interface ICompetencyMatrixWebPartProps {
   title: string;
   competenciesListTitle: string;
   leadField: string;
+  managerField: string;
   competencyDescriptionField: string;
   staffListTitle: string;
   staffPersonField: string;
@@ -44,6 +45,7 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
     const service = new CompetencyService(this._sp, {
       competenciesListTitle: this.properties.competenciesListTitle || 'Competencies',
       leadField: this.properties.leadField || 'Lead',
+      managerField: this.properties.managerField || 'Manager',
       competencyDescriptionField: this.properties.competencyDescriptionField,
       staffListTitle: this.properties.staffListTitle || 'Team Structure',
       staffPersonField: this.properties.staffPersonField || 'Resource',
@@ -111,6 +113,9 @@ export default class CompetencyMatrixWebPart extends BaseClientSideWebPart<IComp
                 }),
                 PropertyPaneTextField('leadField', {
                   label: strings.LeadFieldLabel
+                }),
+                PropertyPaneTextField('managerField', {
+                  label: strings.ManagerFieldLabel
                 }),
                 PropertyPaneTextField('competencyDescriptionField', {
                   label: strings.CompetencyDescriptionFieldLabel,
