@@ -43,7 +43,7 @@ public sealed class AiJobWorker(AiJobQueue queue, IServiceScopeFactory scopes, I
             try
             {
                 await store.UpdateJobAsync(job.JobId, "running", 0, 1, null, null, stoppingToken);
-                var output = await RunAsync(scope.ServiceProvider, store, job, stoppingToken);
+                var output = await RunAsync(scope.ServiceProvider, ReportProgress(job.JobId), job, stoppingToken);
                 await store.UpdateJobAsync(job.JobId, output.IsSuccess ? "succeeded" : "failed", 1, 1, output.Error, output.Id, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -58,7 +58,38 @@ public sealed class AiJobWorker(AiJobQueue queue, IServiceScopeFactory scopes, I
         }
     }
 
-    private static async Task<AiOutputRecord> RunAsync(IServiceProvider services, AiStore store, AiJobRequest job, CancellationToken ct)
+    /// <summary>
+    /// Progress is written through its own scope: the job's DbContext is busy with the AI calls,
+    /// and a DbContext must not be used concurrently. Updates are serialised and best-effort.
+    /// </summary>
+    private IProgress<(int Done, int Total)> ReportProgress(Guid jobId)
+    {
+        var gate = new SemaphoreSlim(1, 1);
+        return new SynchronousProgress(async p =>
+        {
+            await gate.WaitAsync();
+            try
+            {
+                using var scope = scopes.CreateScope();
+                await scope.ServiceProvider.GetRequiredService<AiStore>().UpdateJobAsync(jobId, "running", p.Done, p.Total, null, null, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Progress update for job {Job} failed.", jobId);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        });
+    }
+
+    private sealed class SynchronousProgress(Func<(int Done, int Total), Task> report) : IProgress<(int Done, int Total)>
+    {
+        public void Report((int Done, int Total) value) => report(value).GetAwaiter().GetResult();
+    }
+
+    private static async Task<AiOutputRecord> RunAsync(IServiceProvider services, IProgress<(int Done, int Total)> progress, AiJobRequest job, CancellationToken ct)
     {
         var graphs = services.GetRequiredService<GraphStore>();
         var flowId = GraphStore.FlowIdOf(job.NodeId.Split('#')[0]) ?? job.NodeId;
@@ -68,8 +99,6 @@ public sealed class AiJobWorker(AiJobQueue queue, IServiceScopeFactory scopes, I
         switch (job.Kind)
         {
             case AiKinds.FlowSummary:
-                var progress = new Progress<(int Done, int Total)>(p =>
-                    _ = store.UpdateJobAsync(job.JobId, "running", p.Done, p.Total, null, null, CancellationToken.None));
                 return await services.GetRequiredService<FlowSummaryService>().SummariseAsync(graph, flowId, job.ImportId, progress, ct);
 
             case AiKinds.ActionDescription:

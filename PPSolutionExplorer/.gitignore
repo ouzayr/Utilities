@@ -11,3 +11,5 @@ web/.angular/
 src/Api/wwwroot/
 appsettings.Local.json
 *.gguf
+deploy/.env
+deploy/models/

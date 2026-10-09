@@ -81,7 +81,19 @@ public sealed class LlamaCppClient : ILlmClient
 
     public async Task<int> CountTokensAsync(string text, CancellationToken ct)
     {
-        using var response = await _http.PostAsJsonAsync("tokenize", new { content = text }, ct);
+        HttpResponseMessage response;
+        try
+        {
+            // Buffered body with Content-Length (PostAsJsonAsync would stream it chunked).
+            var body = new JsonObject { ["content"] = text }.ToJsonString();
+            response = await _http.PostAsync("tokenize", new StringContent(body, Encoding.UTF8, "application/json"), ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new LlmException($"llama-server /tokenize failed: {ex.Message}", ex);
+        }
+
+        using var _ = response;
         await EnsureSuccess(response, ct);
         var json = await response.Content.ReadFromJsonAsync<JsonObject>(ct);
         return json?["tokens"]?.AsArray().Count ?? throw new LlmException("/tokenize returned no tokens array.");

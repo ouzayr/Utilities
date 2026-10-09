@@ -62,3 +62,4 @@ code { font-size: .82rem; }
 .unresolved { color: var(--warn); }
 .layout-2 { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 1rem; }
 @media (max-width: 1100px) { .layout-2 { grid-template-columns: 1fr; } }
+td code, .muted code { word-break: break-all; }
