@@ -122,7 +122,7 @@ public sealed class FlowSummaryService(AiRunner runner, ILlmClient llm, IOptions
             var record = await runner.RunStructuredAsync(prompt, new Dictionary<string, string>
             {
                 ["scopeName"] = redactor.Redact(scope.Name),
-                ["scopeType"] = scope.Type + (scope.SubType is null ? "" : $" ({scope.SubType})"),
+                ["scopeType"] = scope.SubType is null || scope.SubType == scope.Type.ToString() ? scope.Type.ToString() : $"{scope.Type}/{scope.SubType}",
                 ["part"] = part.ToString(),
                 ["parts"] = parts.ToString(),
                 ["content"] = StepRenderer.Fence(chunk),
