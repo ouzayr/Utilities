@@ -9,7 +9,13 @@ using PPSolutionExplorer.Api.Infrastructure;
 using PPSolutionExplorer.Persistence;
 using PPSolutionExplorer.Persistence.Stores;
 
-var builder = WebApplication.CreateBuilder(args);
+// When run as a Windows service, the content root must be the install folder, not System32.
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : default,
+});
+builder.Host.UseWindowsService(o => o.ServiceName = "PPSolutionExplorer");
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
 
 var maxUpload = builder.Configuration.GetValue<long?>("Upload:MaxBytes") ?? 200L * 1024 * 1024;
