@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core\PPSolutionExplorer.Core.csproj" />
+    <ProjectReference Include="..\Ai\PPSolutionExplorer.Ai.csproj" />
   </ItemGroup>
 
   <ItemGroup>

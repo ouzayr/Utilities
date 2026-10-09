@@ -188,8 +188,9 @@ public static partial class FlowDefinitionParser
         {
             var type = Str(json, "type");
             var id = NodeIds.Trigger(flowId, name);
+            // Triggers sort before every action (actions count up from 0).
             var node = graph.Add(new GraphNode(id, NodeType.Trigger, name, flowId, SubType: type, RawJson: json.GetRawText(),
-                Properties: BaseProperties(json), Order: order));
+                Properties: BaseProperties(json), Order: order - 1_000_000));
             _triggerId ??= id;
             _steps[name] = (node, json);
             graph.AddEdge(new GraphEdge(flowId, id, EdgeType.Contains));
