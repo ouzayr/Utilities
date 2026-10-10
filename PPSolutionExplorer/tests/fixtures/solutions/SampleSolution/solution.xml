@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImportExportXml version="9.2.24044.199" SolutionPackageVersion="9.2" languagecode="1033" generatedBy="CrmLive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <SolutionManifest>
+    <UniqueName>PpseSample</UniqueName>
+    <LocalizedNames>
+      <LocalizedName description="PPSE Sample" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions />
+    <Version>1.0.0.3</Version>
+    <Managed>0</Managed>
+    <Publisher>
+      <UniqueName>ppse</UniqueName>
+      <LocalizedNames>
+        <LocalizedName description="Sample Publisher" languagecode="1033" />
+      </LocalizedNames>
+      <CustomizationPrefix>ppse</CustomizationPrefix>
+    </Publisher>
+    <RootComponents />
+    <MissingDependencies />
+  </SolutionManifest>
+</ImportExportXml>
