@@ -3,11 +3,12 @@ using PPSolutionExplorer.Ai.Services;
 using PPSolutionExplorer.Core.Graph;
 using PPSolutionExplorer.Core.Model;
 using PPSolutionExplorer.Core.Quality;
+using PPSolutionExplorer.Api.Inventory;
 using PPSolutionExplorer.Persistence.Stores;
 
 namespace PPSolutionExplorer.Api.Docs;
 
-public sealed record DocOptions(string? FlowId, bool IncludeAi, bool IncludeEnvValues);
+public sealed record DocOptions(string? FlowId, bool IncludeAi, bool IncludeEnvValues, bool IncludeDiagrams, QualityProfile Profile, InventoryReport Inventory);
 
 /// <summary>Generates documentation from the graph. Deterministic, except for clearly labelled AI blocks.</summary>
 public static class DocumentationGenerator
@@ -50,20 +51,18 @@ public static class DocumentationGenerator
             }
 
             doc.Heading(2, "Cloud flows");
-            doc.Table(["Flow", "State", "Trigger", "Steps", "Unresolved"], flows.Select(f =>
-            {
-                var steps = graph.Descendants(f.Id).Where(n => n.Type.IsFlowStep()).ToList();
-                var trigger = steps.FirstOrDefault(s => s.Type == NodeType.Trigger);
-                IReadOnlyList<string> row =
+            doc.Table(["Flow", "State", "Trigger", "Steps", "Complexity", "Premium", "Unresolved"], options.Inventory.Flows
+                .Where(f => flows.Any(x => x.Id == f.FlowId))
+                .Select(f => (IReadOnlyList<string>)
                 [
                     f.Name,
-                    f.Property(NodeProperties.State) ?? "-",
-                    trigger is null ? "-" : $"{trigger.Name} ({trigger.SubType})",
-                    steps.Count(s => s.Type != NodeType.Trigger).ToString(),
-                    graph.Unresolved.Count(u => u.NodeId.StartsWith(f.Id + "/", StringComparison.Ordinal)).ToString(),
-                ];
-                return row;
-            }));
+                    f.State ?? "-",
+                    f.Trigger ?? "-",
+                    f.Steps.ToString(),
+                    $"{f.Complexity.Score} ({f.Complexity.Rating})",
+                    f.UsesPremium ? "yes" : "no",
+                    graph.Unresolved.Count(u => u.NodeId.StartsWith(f.FlowId + "/", StringComparison.Ordinal)).ToString(),
+                ]));
         }
 
         foreach (var flow in flows)
@@ -118,6 +117,26 @@ public static class DocumentationGenerator
             doc.List(flowNotes.Select(n => n.Text));
         }
 
+        if (options.Inventory.Flows.FirstOrDefault(f => f.FlowId == flow.Id) is { } inventory)
+        {
+            var c = inventory.Complexity;
+            doc.Paragraph($"Complexity {c.Score} ({c.Rating}): {c.Actions} steps, {c.Containers} containers, {c.Branches} branches, " +
+                          $"max depth {c.MaxDepth}, {c.Expressions} expressions, {c.Paths} execution paths. Connectors: {string.Join(", ", inventory.Connectors)}.");
+        }
+
+        if (options.IncludeDiagrams)
+        {
+            doc.Heading(3, "Diagram");
+            if (MermaidBuilder.Build(graph, flow.Id) is { } diagram)
+            {
+                doc.Mermaid(diagram);
+            }
+            else
+            {
+                doc.Paragraph($"Diagram omitted (more than {MermaidBuilder.MaxSteps} steps). Use the flow viewer.", muted: true);
+            }
+        }
+
         doc.Heading(3, "Steps");
         doc.Tree(StepTree(graph, flow.Id, 0, tags));
 
@@ -146,7 +165,7 @@ public static class DocumentationGenerator
         doc.Table(["Step", "Reason", "Expression"], unresolved.Select(u => (IReadOnlyList<string>)[graph.Find(u.NodeId)?.Name ?? u.NodeId, u.Reason, u.RawExpression]));
 
         doc.Heading(3, "Quality findings");
-        doc.Table(["Rule", "Severity", "Step", "Finding"], QualityRules.Evaluate(graph, flow.Id)
+        doc.Table(["Rule", "Severity", "Step", "Finding"], QualityRules.Evaluate(graph, flow.Id, options.Profile)
             .Select(f => (IReadOnlyList<string>)[f.RuleId, f.Severity.ToString(), graph.Find(f.NodeId)?.Name ?? f.NodeId, f.Message]));
     }
 
@@ -189,6 +208,17 @@ public static class DocumentationGenerator
 
     private static void WriteSolutionComponents(DocWriter doc, ComponentGraph graph, DocOptions options)
     {
+        doc.Heading(2, "Connector inventory");
+        doc.Paragraph(options.Inventory.Note, muted: true);
+        doc.Table(["Connector", "Premium", "Connection references", "Flows", "Steps"], options.Inventory.Connectors.Select(c => (IReadOnlyList<string>)
+            [c.Connector, c.Premium ? "yes" : "no", string.Join(", ", c.ConnectionReferences), string.Join(", ", c.Flows), c.Steps.ToString()]));
+
+        if (options.Inventory.Deprecated.Count > 0)
+        {
+            doc.Heading(3, "Deprecated connectors / operations in use");
+            doc.Table(["Flow", "Step", "Matches"], options.Inventory.Deprecated.Select(d => (IReadOnlyList<string>)[d.FlowName, d.StepName, d.Match]));
+        }
+
         doc.Heading(2, "Environment variables");
         doc.Table(options.IncludeEnvValues ? ["Schema name", "Display name", "Type", "Default value", "Current value"] : ["Schema name", "Display name", "Type"],
             graph.Nodes.Where(n => n.Type == NodeType.EnvVariable).OrderBy(n => n.Name).Select(n => (IReadOnlyList<string>)(options.IncludeEnvValues

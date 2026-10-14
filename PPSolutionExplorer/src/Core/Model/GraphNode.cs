@@ -39,4 +39,5 @@ public static class NodeProperties
     public const string TableName = "table";
     public const string ConcurrencyRepetitions = "concurrency";
     public const string State = "state";
+    public const string ExpressionCount = "expressions";
 }

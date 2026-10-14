@@ -19,6 +19,7 @@ public sealed class StepAiService(AiRunner runner, IOptions<AiOptions> options)
     public const string TagPrompt = "tag-suggestions";
     public const string SearchPrompt = "nl-search";
     public const string QualityPrompt = "quality-explanation";
+    public const string ExpressionPrompt = "expression-explanation";
 
     private readonly AiOptions _options = options.Value;
 
@@ -36,7 +37,7 @@ public sealed class StepAiService(AiRunner runner, IOptions<AiOptions> options)
             ? graph.Descendants(node.Id).Where(n => n.Type.IsFlowStep()).Take(60).ToList()
             : [node];
         var content = string.Concat(steps.Select(s => StepRenderer.Render(graph, s, redactor)));
-        var vocabulary = _options.TagVocabulary.Select(t => t.ToLowerInvariant()).ToHashSet();
+        var vocabulary = _options.EffectiveTagVocabulary.Select(t => t.ToLowerInvariant()).ToHashSet();
 
         return runner.RunStructuredAsync(TagPrompt, new Dictionary<string, string>
         {
@@ -123,6 +124,19 @@ public sealed class StepAiService(AiRunner runner, IOptions<AiOptions> options)
             ["finding"] = redactor.Redact(findingText),
             ["content"] = StepRenderer.Fence(StepRenderer.Render(graph, node, redactor)),
         }, importId, $"{finding.NodeId}#{finding.RuleId}", AiKinds.QualityExplanation, ct);
+    }
+
+    /// <summary>Explains one expression. The caller passes an expression taken from the step's own source, never user text.</summary>
+    public Task<AiOutputRecord> ExplainExpressionAsync(ComponentGraph graph, GraphNode step, int index, string path, string expression, Guid importId, CancellationToken ct)
+    {
+        var redactor = FlowContext.RedactorFor(graph, _options);
+        return runner.RunStructuredAsync(ExpressionPrompt, new Dictionary<string, string>
+        {
+            ["stepName"] = redactor.Redact(step.Name),
+            ["path"] = path,
+            ["expression"] = StepRenderer.Fence(redactor.Redact(expression)),
+            ["content"] = StepRenderer.Fence(StepRenderer.Render(graph, step, redactor)),
+        }, importId, $"{step.Id}#expr:{index}", AiKinds.ExpressionExplanation, ct);
     }
 
     private Dictionary<string, string> StepValues(ComponentGraph graph, GraphNode step)

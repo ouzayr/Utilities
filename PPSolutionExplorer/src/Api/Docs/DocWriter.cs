@@ -122,6 +122,14 @@ internal sealed class DocWriter
         _html.Append("</tbody></table>\n");
     }
 
+    /// <summary>A Mermaid diagram: fenced in Markdown, preformatted source in HTML (no script is loaded).</summary>
+    public void Mermaid(string source)
+    {
+        _md.AppendLine("```mermaid").Append(source).AppendLine("```").AppendLine();
+        _html.Append("<p class=\"muted\">Diagram source (Mermaid). The Markdown export renders it in Mermaid-capable viewers.</p>");
+        _html.Append($"<pre class=\"mermaid\">{E(source)}</pre>\n");
+    }
+
     /// <summary>AI content, visually distinct and labelled with model, prompt version and timestamp.</summary>
     public void AiBlock(string label, IEnumerable<string> lines)
     {

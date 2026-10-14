@@ -36,4 +36,5 @@ public static class AiKinds
     public const string TagSuggestions = "tag-suggestions";
     public const string NlSearch = "nl-search";
     public const string QualityExplanation = "quality-explanation";
+    public const string ExpressionExplanation = "expression-explanation";
 }

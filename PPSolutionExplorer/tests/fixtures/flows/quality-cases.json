@@ -1,0 +1,46 @@
+{
+  "properties": {
+    "displayName": "Quality cases",
+    "definition": {
+      "triggers": { "manual": { "type": "Request", "kind": "Button" } },
+      "actions": {
+        "Init_used": { "runAfter": {}, "type": "InitializeVariable", "inputs": { "variables": [ { "name": "used", "type": "integer", "value": 0 } ] } },
+        "Init_unused": { "runAfter": { "Init_used": ["Succeeded"] }, "type": "InitializeVariable", "inputs": { "variables": [ { "name": "unused", "type": "string" } ] } },
+        "Dead_compose": { "runAfter": { "Init_unused": ["Succeeded"] }, "type": "Compose", "inputs": "@variables('used')" },
+        "Call_with_key": {
+          "runAfter": { "Dead_compose": ["Succeeded"] },
+          "type": "Http",
+          "inputs": { "method": "GET", "uri": "https://api.example.invalid/items", "headers": { "x-api-key": "plain-text-key-123", "Authorization": "@{parameters('$authentication')}" } }
+        },
+        "Loop_items": {
+          "runAfter": { "Call_with_key": ["Succeeded"] },
+          "type": "Foreach",
+          "foreach": "@body('Call_with_key')",
+          "actions": {
+            "Post_item": { "runAfter": {}, "type": "Http", "inputs": { "method": "POST", "uri": "@{items('Loop_items')?['url']}" } }
+          }
+        },
+        "Loop_parallel": {
+          "runAfter": { "Loop_items": ["Succeeded"] },
+          "type": "Foreach",
+          "foreach": "@body('Call_with_key')",
+          "runtimeConfiguration": { "concurrency": { "repetitions": 20 } },
+          "actions": {
+            "Post_parallel": { "runAfter": {}, "type": "Http", "inputs": { "method": "POST", "uri": "@{items('Loop_parallel')}" } }
+          }
+        },
+        "Loop_counter": {
+          "runAfter": { "Loop_parallel": ["Succeeded"] },
+          "type": "Foreach",
+          "foreach": "@body('Call_with_key')",
+          "actions": {
+            "Count_it": { "runAfter": {}, "type": "IncrementVariable", "inputs": { "name": "used", "value": 1 } },
+            "Post_counted": { "runAfter": { "Count_it": ["Succeeded"] }, "type": "Http", "inputs": { "method": "POST", "uri": "@{variables('used')}" } }
+          }
+        },
+        "Bad_ref": { "runAfter": { "Loop_counter": ["Succeeded"] }, "type": "Compose", "inputs": "@{body('Does_not_exist')}@{variables('missing')}" },
+        "Use_bad_ref": { "runAfter": { "Bad_ref": ["Succeeded"] }, "type": "Terminate", "inputs": { "runStatus": "Succeeded", "message": "@{outputs('Bad_ref')}" } }
+      }
+    }
+  }
+}

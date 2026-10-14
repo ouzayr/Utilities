@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using PPSolutionExplorer.Core.Model;
 using PPSolutionExplorer.Core.Paths;
 using PPSolutionExplorer.Core.Quality;
@@ -53,6 +54,9 @@ public static class GraphEndpoints
                 ai = await ai.LatestForNodeAsync(nodeId, ct),
             });
         });
+
+        group.MapGet("/expressions", async (Guid importId, string nodeId, GraphStore store, CancellationToken ct) =>
+            await store.GetNodeAsync(importId, nodeId, ct) is { } node ? Results.Ok(Expressions.Of(GraphStore.ToModel(node))) : Results.NotFound());
 
         group.MapGet("/flow-graph", async (Guid importId, string flowId, GraphStore store, CancellationToken ct) =>
         {
@@ -114,13 +118,38 @@ public static class GraphEndpoints
         group.MapGet("/impact", (Guid importId, string nodeId, int? depth, GraphStore store, CancellationToken ct) =>
             store.ImpactAsync(importId, nodeId, depth ?? 6, ct));
 
-        group.MapGet("/quality", async (Guid importId, string flowId, GraphStore store, CancellationToken ct) =>
+        group.MapGet("/quality", async (Guid importId, string flowId, string? profile, IOptions<QualityOptions> quality, GraphStore store, CancellationToken ct) =>
         {
             var graph = await store.LoadFlowGraphAsync(importId, flowId, ct);
-            return graph is null ? Results.NotFound() : Results.Ok(QualityRules.Evaluate(graph, flowId));
+            return graph is null ? Results.NotFound() : Results.Ok(QualityRules.Evaluate(graph, flowId, quality.Value.Resolve(profile)));
+        });
+
+        group.MapGet("/complexity", async (Guid importId, string? flowId, GraphStore store, CancellationToken ct) =>
+        {
+            var graph = await store.LoadGraphAsync(importId, ct);
+            var flows = graph.Nodes.Where(n => n.Type == NodeType.Flow && !n.IsPlaceholder && (flowId is null || n.Id == flowId)).ToList();
+            return Results.Ok(flows.Select(f => ComplexityCalculator.Calculate(graph, f.Id)).OrderByDescending(c => c.Score));
         });
 
         group.MapGet("/facets", (Guid importId, GraphStore store, CancellationToken ct) => store.GetFacetsAsync(importId, ct));
+
+        api.MapGet("/quality/rules", (string? profile, IOptions<QualityOptions> quality) =>
+        {
+            var resolved = quality.Value.Resolve(profile);
+            return Results.Ok(new
+            {
+                profile = profile ?? quality.Value.DefaultProfile,
+                profiles = quality.Value.Profiles.Keys.Prepend("default").Distinct(StringComparer.OrdinalIgnoreCase),
+                resolved.MaxNestingDepth,
+                resolved.MaxActions,
+                rules = QualityRules.Catalog.Select(r => new
+                {
+                    r.Id, r.Title, r.Category, r.Description, r.DefaultSeverity,
+                    Enabled = resolved.IsEnabled(r.Id),
+                    Severity = resolved.SeverityOf(r),
+                }),
+            });
+        });
 
         api.MapPost("/search", async (SearchQuery query, GraphStore store, CancellationToken ct) =>
         {

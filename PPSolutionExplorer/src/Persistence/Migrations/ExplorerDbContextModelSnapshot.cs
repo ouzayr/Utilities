@@ -146,6 +146,47 @@ namespace PPSolutionExplorer.Persistence.Migrations
                     b.ToTable("ai_outputs", (string)null);
                 });
 
+            modelBuilder.Entity("PPSolutionExplorer.Persistence.Entities.AuditEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("action");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("actor");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("text")
+                        .HasColumnName("details");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("target");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("At");
+
+                    b.HasIndex("Target");
+
+                    b.ToTable("audit_log", (string)null);
+                });
+
             modelBuilder.Entity("PPSolutionExplorer.Persistence.Entities.EdgeEntity", b =>
                 {
                     b.Property<long>("Id")

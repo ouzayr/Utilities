@@ -40,7 +40,7 @@ public static class AiEndpoints
             });
         });
 
-        group.MapPost("/jobs", async (AiJobCreate request, IOptions<AiOptions> options, AiStore store, GraphStore graph, AiJobQueue queue, CancellationToken ct) =>
+        group.MapPost("/jobs", async (AiJobCreate request, IOptions<AiOptions> options, AiStore store, GraphStore graph, AiJobQueue queue, AuditStore audit, CancellationToken ct) =>
         {
             if (!options.Value.Enabled)
             {
@@ -58,6 +58,7 @@ public static class AiEndpoints
             }
 
             var job = await store.CreateJobAsync(request.Kind, request.ImportId, request.NodeId, ct);
+            await audit.WriteAsync("ai.job", request.NodeId, request.Kind, ct);
             await queue.EnqueueAsync(new AiJobRequest(job.Id, request.Kind, request.ImportId, request.NodeId), ct);
             return Results.Accepted($"/api/ai/jobs/{job.Id}", job);
         });
@@ -114,7 +115,7 @@ public static class AiEndpoints
         });
 
         // A user explicitly accepts one suggested tag. Suggestions are never applied automatically.
-        group.MapPost("/outputs/{id:guid}/accept-tag", async (Guid id, AcceptTagRequest request, AiStore store, AnnotationStore annotations, CancellationToken ct) =>
+        group.MapPost("/outputs/{id:guid}/accept-tag", async (Guid id, AcceptTagRequest request, AiStore store, AnnotationStore annotations, AuditStore audit, CancellationToken ct) =>
         {
             var output = await store.GetOutputAsync(id, ct);
             if (output is null || output.Kind != AiKinds.TagSuggestions || !output.IsSuccess || output.Content is null)
@@ -130,7 +131,9 @@ public static class AiEndpoints
                 return Results.BadRequest(new { title = "Tag was not part of this suggestion." });
             }
 
-            return Results.Ok(await annotations.AddTagAsync(output.NodeId, request.Tag, "ai-accepted", ct));
+            var tag = await annotations.AddTagAsync(output.NodeId, request.Tag, "ai-accepted", ct);
+            await audit.WriteAsync("ai.tag-accept", tag.NodeId, $"{tag.Tag} (output {id}, model {output.Model})", ct);
+            return Results.Ok(tag);
         });
     }
 }

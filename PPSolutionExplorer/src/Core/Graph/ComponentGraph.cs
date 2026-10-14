@@ -10,7 +10,12 @@ public sealed class ComponentGraph
 {
     private readonly Dictionary<string, GraphNode> _nodes = new(StringComparer.Ordinal);
     private readonly List<GraphEdge> _edges = [];
-    private readonly HashSet<(string, string, EdgeType)> _edgeKeys = [];
+    private readonly Dictionary<(string, string, EdgeType), int> _edgeIndex = [];
+
+    // Adjacency indexes keep lookups O(degree) so flows with thousands of steps stay fast.
+    private readonly Dictionary<string, List<int>> _outgoing = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<int>> _incoming = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<string>> _children = new(StringComparer.Ordinal);
     private readonly List<UnresolvedReference> _unresolved = [];
     private readonly List<string> _warnings = [];
 
@@ -56,11 +61,30 @@ public sealed class ComponentGraph
             return existing;
         }
 
-        _nodes[node.Id] = node;
+        SetNode(node);
         return node;
     }
 
-    public void AddOrReplace(GraphNode node) => _nodes[node.Id] = node;
+    public void AddOrReplace(GraphNode node) => SetNode(node);
+
+    private void SetNode(GraphNode node)
+    {
+        if (_nodes.TryGetValue(node.Id, out var previous) && previous.ParentId is { } oldParent && _children.TryGetValue(oldParent, out var siblings))
+        {
+            siblings.Remove(node.Id);
+        }
+
+        _nodes[node.Id] = node;
+        if (node.ParentId is { } parent)
+        {
+            if (!_children.TryGetValue(parent, out var list))
+            {
+                _children[parent] = list = [];
+            }
+
+            list.Add(node.Id);
+        }
+    }
 
     /// <summary>Adds a placeholder node for something referenced but not defined (yet).</summary>
     public GraphNode EnsurePlaceholder(string id, NodeType type, string name, IReadOnlyDictionary<string, string>? properties = null)
@@ -80,13 +104,17 @@ public sealed class ComponentGraph
     /// <summary>Adds an edge. Duplicate (source, target, type) edges are merged (status flags OR'd).</summary>
     public void AddEdge(GraphEdge edge)
     {
-        if (_edgeKeys.Add((edge.SourceId, edge.TargetId, edge.Type)))
+        var key = (edge.SourceId, edge.TargetId, edge.Type);
+        if (!_edgeIndex.TryGetValue(key, out var index))
         {
+            index = _edges.Count;
+            _edgeIndex[key] = index;
             _edges.Add(edge);
+            Index(_outgoing, edge.SourceId, index);
+            Index(_incoming, edge.TargetId, index);
             return;
         }
 
-        var index = _edges.FindIndex(e => e.SourceId == edge.SourceId && e.TargetId == edge.TargetId && e.Type == edge.Type);
         var current = _edges[index];
         _edges[index] = current with { Status = current.Status | edge.Status, Expression = current.Expression ?? edge.Expression };
     }
@@ -96,17 +124,29 @@ public sealed class ComponentGraph
     public void AddWarning(string warning) => _warnings.Add(warning);
 
     public IEnumerable<GraphEdge> Outgoing(string id, EdgeType? type = null) =>
-        _edges.Where(e => e.SourceId == id && (type is null || e.Type == type));
+        _outgoing.TryGetValue(id, out var list) ? list.Select(i => _edges[i]).Where(e => type is null || e.Type == type) : [];
 
     public IEnumerable<GraphEdge> Incoming(string id, EdgeType? type = null) =>
-        _edges.Where(e => e.TargetId == id && (type is null || e.Type == type));
+        _incoming.TryGetValue(id, out var list) ? list.Select(i => _edges[i]).Where(e => type is null || e.Type == type) : [];
 
     /// <summary>Direct children by <see cref="GraphNode.ParentId"/>, ordered by source order.</summary>
     public IEnumerable<GraphNode> Children(string parentId, string? branch = null) =>
-        _nodes.Values
-            .Where(n => n.ParentId == parentId && (branch is null || n.Branch == branch))
-            .OrderBy(n => n.Order)
-            .ThenBy(n => n.Id, StringComparer.Ordinal);
+        _children.TryGetValue(parentId, out var ids)
+            ? ids.Select(id => _nodes[id])
+                .Where(n => branch is null || n.Branch == branch)
+                .OrderBy(n => n.Order)
+                .ThenBy(n => n.Id, StringComparer.Ordinal)
+            : [];
+
+    private static void Index(Dictionary<string, List<int>> index, string key, int edge)
+    {
+        if (!index.TryGetValue(key, out var list))
+        {
+            index[key] = list = [];
+        }
+
+        list.Add(edge);
+    }
 
     /// <summary>All descendants (depth-first) by <see cref="GraphNode.ParentId"/>.</summary>
     public IEnumerable<GraphNode> Descendants(string parentId)

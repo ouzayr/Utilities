@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using PPSolutionExplorer.Ai;
 using PPSolutionExplorer.Ai.Services;
+using PPSolutionExplorer.Api.Endpoints;
 using PPSolutionExplorer.Core.Quality;
 using PPSolutionExplorer.Persistence.Stores;
 
@@ -12,7 +13,7 @@ namespace PPSolutionExplorer.Api.AiJobs;
 /// </summary>
 public sealed class AiJobWorker(AiJobQueue queue, IServiceScopeFactory scopes, IOptions<AiOptions> options, ILogger<AiJobWorker> logger) : BackgroundService
 {
-    public static readonly string[] Kinds = [AiKinds.FlowSummary, AiKinds.ActionDescription, AiKinds.TagSuggestions, AiKinds.QualityExplanation];
+    public static readonly string[] Kinds = [AiKinds.FlowSummary, AiKinds.ActionDescription, AiKinds.TagSuggestions, AiKinds.QualityExplanation, AiKinds.ExpressionExplanation];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -113,6 +114,19 @@ public sealed class AiJobWorker(AiJobQueue queue, IServiceScopeFactory scopes, I
                 var finding = QualityRules.Evaluate(graph, flowId).FirstOrDefault(f => f.NodeId == parts[0] && f.RuleId == parts.ElementAtOrDefault(1))
                     ?? throw new KeyNotFoundException($"No finding {parts.ElementAtOrDefault(1)} on '{parts[0]}'.");
                 return await services.GetRequiredService<StepAiService>().ExplainFindingAsync(graph, finding, job.ImportId, ct);
+
+            case AiKinds.ExpressionExplanation:
+                // NodeId is "<nodeId>#expr:<index>": the expression is re-read from the stored source, not taken from the client.
+                var exprParts = job.NodeId.Split("#expr:", 2);
+                var step = Node(graph, exprParts[0]);
+                var expressions = Expressions.Of(step);
+                if (exprParts.Length != 2 || !int.TryParse(exprParts[1], out var index) || index < 0 || index >= expressions.Count)
+                {
+                    throw new KeyNotFoundException($"No expression {exprParts.ElementAtOrDefault(1)} on '{step.Id}'.");
+                }
+
+                return await services.GetRequiredService<StepAiService>().ExplainExpressionAsync(
+                    graph, step, index, expressions[index].Path, expressions[index].Expression, job.ImportId, ct);
 
             default:
                 throw new ArgumentException($"Unknown AI job kind '{job.Kind}'.");

@@ -16,6 +16,7 @@ public sealed class ExplorerDbContext(DbContextOptions<ExplorerDbContext> option
     public DbSet<NoteEntity> Notes => Set<NoteEntity>();
     public DbSet<AiOutputEntity> AiOutputs => Set<AiOutputEntity>();
     public DbSet<AiJobEntity> AiJobs => Set<AiJobEntity>();
+    public DbSet<AuditEntity> Audit => Set<AuditEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -83,6 +84,14 @@ public sealed class ExplorerDbContext(DbContextOptions<ExplorerDbContext> option
             e.ToTable("ai_jobs");
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<AuditEntity>(e =>
+        {
+            e.ToTable("audit_log");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.At);
+            e.HasIndex(x => x.Target);
         });
 
         // snake_case names for raw SQL readability.

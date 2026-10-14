@@ -6,6 +6,7 @@ using PPSolutionExplorer.Ai.Services;
 using PPSolutionExplorer.Api.AiJobs;
 using PPSolutionExplorer.Api.Endpoints;
 using PPSolutionExplorer.Api.Infrastructure;
+using PPSolutionExplorer.Core.Quality;
 using PPSolutionExplorer.Persistence;
 using PPSolutionExplorer.Persistence.Stores;
 
@@ -34,9 +35,12 @@ builder.Services.AddDbContext<ExplorerDbContext>(o =>
 builder.Services.AddScoped<GraphStore>();
 builder.Services.AddScoped<AnnotationStore>();
 builder.Services.AddScoped<AiStore>();
+builder.Services.AddScoped<AuditStore>();
 builder.Services.AddScoped<IAiOutputStore>(sp => sp.GetRequiredService<AiStore>());
 
 builder.Services.AddExplorerAi(builder.Configuration);
+builder.Services.Configure<QualityOptions>(builder.Configuration.GetSection(QualityOptions.Section));
+builder.Services.Configure<PPSolutionExplorer.Api.Inventory.InventoryOptions>(builder.Configuration.GetSection(PPSolutionExplorer.Api.Inventory.InventoryOptions.Section));
 builder.Services.AddSingleton<AiJobQueue>();
 builder.Services.AddHostedService<AiJobWorker>();
 
@@ -72,6 +76,7 @@ api.MapImportEndpoints();
 api.MapGraphEndpoints();
 api.MapAnnotationEndpoints();
 api.MapDocsEndpoints();
+api.MapDiffEndpoints();
 api.MapAiEndpoints();
 
 // Angular client-side routes.

@@ -1,6 +1,9 @@
 using System.Text;
 using PPSolutionExplorer.Ai.Services;
+using Microsoft.Extensions.Options;
 using PPSolutionExplorer.Api.Docs;
+using PPSolutionExplorer.Api.Inventory;
+using PPSolutionExplorer.Core.Quality;
 using PPSolutionExplorer.Core.Model;
 using PPSolutionExplorer.Persistence.Stores;
 
@@ -11,6 +14,7 @@ public static class DocsEndpoints
     public static void MapDocsEndpoints(this RouteGroupBuilder api)
     {
         api.MapGet("/imports/{importId:guid}/docs", async (Guid importId, string? format, string? flowId, bool? includeAi, bool? includeEnvValues,
+            bool? includeDiagrams, string? profile, IOptions<QualityOptions> quality, IOptions<InventoryOptions> inventoryOptions,
             GraphStore graphs, AnnotationStore annotations, AiStore ai, CancellationToken ct) =>
         {
             var import = await graphs.GetImportAsync(importId, ct);
@@ -35,7 +39,8 @@ public static class DocsEndpoints
 
             var summaries = await ai.LatestSucceededAsync(graph.Nodes.Where(n => n.Type == NodeType.Flow).Select(n => n.Id).ToList(), AiKinds.FlowSummary, ct);
             var doc = DocumentationGenerator.Generate(import, graph, tags, notes, summaries,
-                new DocOptions(flowId, includeAi ?? true, includeEnvValues ?? false));
+                new DocOptions(flowId, includeAi ?? true, includeEnvValues ?? false, includeDiagrams ?? true,
+                    quality.Value.Resolve(profile), InventoryBuilder.Build(graph, inventoryOptions.Value)));
 
             var baseName = string.Concat((flowId is null ? import.Name : graph.Find(flowId)!.Name).Select(c => char.IsLetterOrDigit(c) ? c : '_'));
             return (format ?? "md").ToLowerInvariant() switch
@@ -44,5 +49,10 @@ public static class DocsEndpoints
                 _ => Results.File(Encoding.UTF8.GetBytes(doc.Markdown), "text/markdown; charset=utf-8", $"{baseName}.md"),
             };
         });
+
+        api.MapGet("/imports/{importId:guid}/inventory", async (Guid importId, IOptions<InventoryOptions> options, GraphStore graphs, CancellationToken ct) =>
+            await graphs.GetImportAsync(importId, ct) is null
+                ? Results.NotFound()
+                : Results.Ok(InventoryBuilder.Build(await graphs.LoadGraphAsync(importId, ct), options.Value)));
     }
 }

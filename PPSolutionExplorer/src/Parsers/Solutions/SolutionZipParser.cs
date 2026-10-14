@@ -45,7 +45,7 @@ public static class SolutionZipParser
     private static ParseResult ParseSolution(SafeZipReader zip, string fileName)
     {
         var graph = new ComponentGraph();
-        var manifest = XmlHelpers.Load(zip.ReadText("solution.xml")!).All("SolutionManifest").FirstOrDefault()
+        var manifest = XmlHelpers.Load(zip.ReadText("solution.xml")!, "solution.xml").All("SolutionManifest").FirstOrDefault()
             ?? throw new InvalidDataException("solution.xml has no SolutionManifest.");
 
         var uniqueName = manifest.ChildValue("UniqueName") ?? Path.GetFileNameWithoutExtension(fileName);
@@ -63,7 +63,7 @@ public static class SolutionZipParser
             }));
 
         var customizationsXml = zip.ReadText("customizations.xml");
-        var customizations = customizationsXml is null ? null : XmlHelpers.Load(customizationsXml);
+        var customizations = customizationsXml is null ? null : XmlHelpers.Load(customizationsXml, "customizations.xml");
         if (customizations is null)
         {
             graph.AddWarning("customizations.xml not found. Flows are discovered from Workflows/*.json only.");
@@ -198,7 +198,7 @@ public static class SolutionZipParser
         }
         catch (JsonException ex)
         {
-            graph.AddWarning($"Flow '{name}': invalid JSON ({ex.Message}). Skipped.");
+            graph.AddWarning($"Flow '{name}' ({properties.GetValueOrDefault("file") ?? "?"}): invalid JSON at line {ex.LineNumber + 1}, position {ex.BytePositionInLine + 1}. Skipped; other flows were imported.");
         }
     }
 
@@ -346,7 +346,17 @@ public static class SolutionZipParser
         foreach (var path in zip.Paths.Where(p => p.StartsWith("environmentvariabledefinitions/", StringComparison.OrdinalIgnoreCase) &&
                                                p.EndsWith("/environmentvariabledefinition.xml", StringComparison.OrdinalIgnoreCase)))
         {
-            var definition = XmlHelpers.Load(zip.ReadText(path)!).Root;
+            XElement? definition;
+            try
+            {
+                definition = XmlHelpers.Load(zip.ReadText(path)!, path).Root;
+            }
+            catch (InvalidDataException ex)
+            {
+                graph.AddWarning(ex.Message + " Environment variable skipped.");
+                continue;
+            }
+
             var schemaName = definition?.Attr("schemaname");
             if (definition is null || schemaName is null)
             {

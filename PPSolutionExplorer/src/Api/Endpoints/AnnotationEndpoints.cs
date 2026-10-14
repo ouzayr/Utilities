@@ -15,21 +15,57 @@ public static class AnnotationEndpoints
     {
         api.MapGet("/tags", (string? nodeId, AnnotationStore store, CancellationToken ct) => store.TagsAsync(nodeId, ct));
 
-        api.MapPost("/tags", async (TagRequest request, AnnotationStore store, CancellationToken ct) =>
-            Results.Ok(await store.AddTagAsync(request.NodeId, request.Tag, "user", ct)));
+        api.MapPost("/tags", async (TagRequest request, AnnotationStore store, AuditStore audit, CancellationToken ct) =>
+        {
+            var tag = await store.AddTagAsync(request.NodeId, request.Tag, "user", ct);
+            await audit.WriteAsync("tag.add", tag.NodeId, tag.Tag, ct);
+            return Results.Ok(tag);
+        });
 
-        api.MapDelete("/tags/{id:long}", async (long id, AnnotationStore store, CancellationToken ct) =>
-            await store.RemoveTagAsync(id, ct) ? Results.NoContent() : Results.NotFound());
+        api.MapDelete("/tags/{id:long}", async (long id, AnnotationStore store, AuditStore audit, CancellationToken ct) =>
+        {
+            var tag = await store.GetTagAsync(id, ct);
+            if (tag is null || !await store.RemoveTagAsync(id, ct))
+            {
+                return Results.NotFound();
+            }
+
+            await audit.WriteAsync("tag.remove", tag.NodeId, tag.Tag, ct);
+            return Results.NoContent();
+        });
 
         api.MapGet("/notes", (string nodeId, AnnotationStore store, CancellationToken ct) => store.NotesAsync(nodeId, ct));
 
-        api.MapPost("/notes", async (NoteRequest request, AnnotationStore store, CancellationToken ct) =>
-            Results.Ok(await store.AddNoteAsync(request.NodeId, request.Text, ct)));
+        api.MapPost("/notes", async (NoteRequest request, AnnotationStore store, AuditStore audit, CancellationToken ct) =>
+        {
+            var note = await store.AddNoteAsync(request.NodeId, request.Text, ct);
+            await audit.WriteAsync("note.add", note.NodeId, $"#{note.Id}", ct);
+            return Results.Ok(note);
+        });
 
-        api.MapPut("/notes/{id:long}", async (long id, NoteUpdate request, AnnotationStore store, CancellationToken ct) =>
-            await store.UpdateNoteAsync(id, request.Text, ct) is { } note ? Results.Ok(note) : Results.NotFound());
+        api.MapPut("/notes/{id:long}", async (long id, NoteUpdate request, AnnotationStore store, AuditStore audit, CancellationToken ct) =>
+        {
+            if (await store.UpdateNoteAsync(id, request.Text, ct) is not { } note)
+            {
+                return Results.NotFound();
+            }
 
-        api.MapDelete("/notes/{id:long}", async (long id, AnnotationStore store, CancellationToken ct) =>
-            await store.RemoveNoteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
+            await audit.WriteAsync("note.update", note.NodeId, $"#{note.Id}", ct);
+            return Results.Ok(note);
+        });
+
+        api.MapDelete("/notes/{id:long}", async (long id, AnnotationStore store, AuditStore audit, CancellationToken ct) =>
+        {
+            var note = await store.GetNoteAsync(id, ct);
+            if (note is null || !await store.RemoveNoteAsync(id, ct))
+            {
+                return Results.NotFound();
+            }
+
+            await audit.WriteAsync("note.delete", note.NodeId, $"#{note.Id}", ct);
+            return Results.NoContent();
+        });
+
+        api.MapGet("/audit", (string? target, int? take, AuditStore audit, CancellationToken ct) => audit.RecentAsync(target, take ?? 200, ct));
     }
 }

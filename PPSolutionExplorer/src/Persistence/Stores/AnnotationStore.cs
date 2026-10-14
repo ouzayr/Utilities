@@ -35,6 +35,12 @@ public sealed class AnnotationStore(ExplorerDbContext db)
         return new TagDto(entity.Id, entity.NodeId, entity.Tag, entity.Source, entity.CreatedAt);
     }
 
+    public async Task<TagDto?> GetTagAsync(long id, CancellationToken ct) =>
+        await db.Tags.AsNoTracking().Where(t => t.Id == id).Select(t => new TagDto(t.Id, t.NodeId, t.Tag, t.Source, t.CreatedAt)).FirstOrDefaultAsync(ct);
+
+    public async Task<NoteDto?> GetNoteAsync(long id, CancellationToken ct) =>
+        await db.Notes.AsNoTracking().Where(n => n.Id == id).Select(n => new NoteDto(n.Id, n.NodeId, n.Text, n.CreatedAt, n.UpdatedAt)).FirstOrDefaultAsync(ct);
+
     public async Task<bool> RemoveTagAsync(long id, CancellationToken ct) =>
         await db.Tags.Where(t => t.Id == id).ExecuteDeleteAsync(ct) > 0;
 

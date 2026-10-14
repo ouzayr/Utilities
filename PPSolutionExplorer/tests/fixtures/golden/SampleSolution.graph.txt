@@ -106,6 +106,6 @@ table:contact -Contains-> column:contact.fullname
 table:contact -Contains-> column:contact.statecode
 # unresolved
 flow:11111111-1111-1111-1111-111111111111/action:Call_API | body() argument is not a literal | body(variables('status'))
-flow:11111111-1111-1111-1111-111111111111/action:Mystery_step | outputs('Not_an_action') refers to an unknown action | outputs('Not_an_action')
+flow:11111111-1111-1111-1111-111111111111/action:Mystery_step | broken: outputs('Not_an_action') refers to an unknown action | outputs('Not_an_action')
 # warnings
 Workflow 'Legacy business rule' (category 2) is not a cloud flow and was not parsed.

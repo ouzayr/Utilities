@@ -68,6 +68,53 @@ public static partial class ExpressionScanner
         return results;
     }
 
+    /// <summary>Number of expressions (<c>@...</c> and <c>@{...}</c>) in every string of the element.</summary>
+    public static int CountExpressions(JsonElement element) => AllExpressions(element).Count();
+
+    /// <summary>Every expression in the element in document order, with the JSON path it was found at.</summary>
+    public static IEnumerable<(string Path, string Expression)> AllExpressions(JsonElement element, string path = "")
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                foreach (var expression in ExpressionsIn(element.GetString()!))
+                {
+                    yield return (path, expression);
+                }
+
+                break;
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    var childPath = path.Length == 0 ? property.Name : $"{path}/{property.Name}";
+                    foreach (var expression in ExpressionsIn(property.Name))
+                    {
+                        yield return (childPath + " (key)", expression);
+                    }
+
+                    foreach (var item in AllExpressions(property.Value, childPath))
+                    {
+                        yield return item;
+                    }
+                }
+
+                break;
+            case JsonValueKind.Array:
+                var index = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    foreach (var found in AllExpressions(item, $"{path}[{index}]"))
+                    {
+                        yield return found;
+                    }
+
+                    index++;
+                }
+
+                break;
+        }
+    }
+
     public static IReadOnlyList<ExpressionReference> ScanExpression(string expression)
     {
         var results = new List<ExpressionReference>();

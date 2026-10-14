@@ -118,3 +118,19 @@ public sealed class AiJobEntity
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
+
+/// <summary>Append-only record of changes made through the tool (imports, tags, notes, AI actions).</summary>
+public sealed class AuditEntity
+{
+    public long Id { get; set; }
+    public DateTimeOffset At { get; set; }
+
+    /// <summary>e.g. <c>import.create</c>, <c>tag.add</c>, <c>note.delete</c>, <c>ai.job</c>, <c>ai.tag-accept</c>.</summary>
+    public required string Action { get; set; }
+
+    public required string Target { get; set; }
+    public string? Details { get; set; }
+
+    /// <summary>OS user running the tool (single-user local app).</summary>
+    public required string Actor { get; set; }
+}

@@ -31,12 +31,16 @@ public sealed class AiOptions
     /// <summary>Folder holding versioned prompt templates. Relative paths resolve from the app base directory.</summary>
     public string PromptsPath { get; set; } = "prompts";
 
-    /// <summary>Fixed tag vocabulary offered to the tag-suggestion prompt.</summary>
-    public List<string> TagVocabulary { get; set; } =
+    public static readonly IReadOnlyList<string> DefaultTagVocabulary =
     [
         "integration", "notification", "approval", "data-sync", "reporting", "scheduled", "error-handling",
         "child-flow", "dataverse", "sharepoint", "email", "teams", "http", "file-handling", "security", "legacy",
     ];
+
+    /// <summary>Fixed tag vocabulary offered to the tag-suggestion prompt. Null: defaults (a configured list replaces them).</summary>
+    public List<string>? TagVocabulary { get; set; }
+
+    public IReadOnlyList<string> EffectiveTagVocabulary => TagVocabulary ?? DefaultTagVocabulary;
 
     public RedactionOptions Redaction { get; set; } = new();
 

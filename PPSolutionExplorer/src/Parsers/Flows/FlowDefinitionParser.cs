@@ -21,7 +21,19 @@ public static partial class FlowDefinitionParser
     /// <summary>Parses a standalone flow JSON document (no solution).</summary>
     public static ComponentGraph ParseStandalone(string json, string fallbackName)
     {
-        using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(
+                $"'{fallbackName}' is not valid JSON (line {ex.LineNumber + 1}, position {ex.BytePositionInLine + 1}). " +
+                "Upload a solution .zip, a flow package .zip or the flow definition .json.", ex);
+        }
+
+        using var _ = doc;
         var root = doc.RootElement;
         var graph = new ComponentGraph();
 
@@ -45,6 +57,12 @@ public static partial class FlowDefinitionParser
         {
             graph.AddWarning($"{flowNodeId}: no 'triggers' or 'actions' found. The flow definition shape was not recognised.");
             return;
+        }
+
+        if (Str(definition, "$schema") is { } schema && !schema.Contains("2016-06-01/workflowdefinition.json", StringComparison.OrdinalIgnoreCase))
+        {
+            graph.AddWarning($"{flowNodeId}: definition schema '{schema}' is newer or different from the one this parser was built for. " +
+                             "Parsed best-effort; unrecognised constructs are kept as Unknown.");
         }
 
         var state = new FlowState(graph, flowNodeId, context, properties, definition);
@@ -188,9 +206,12 @@ public static partial class FlowDefinitionParser
         {
             var type = Str(json, "type");
             var id = NodeIds.Trigger(flowId, name);
+            var properties = BaseProperties(json);
+            properties[NodeProperties.ExpressionCount] = ExpressionScanner.CountExpressions(json).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
             // Triggers sort before every action (actions count up from 0).
             var node = graph.Add(new GraphNode(id, NodeType.Trigger, name, flowId, SubType: type, RawJson: json.GetRawText(),
-                Properties: BaseProperties(json), Order: order - 1_000_000));
+                Properties: properties, Order: order - 1_000_000));
             _triggerId ??= id;
             _steps[name] = (node, json);
             graph.AddEdge(new GraphEdge(flowId, id, EdgeType.Contains));
@@ -225,6 +246,8 @@ public static partial class FlowDefinitionParser
             }
 
             var raw = nodeType.IsContainer() ? StripNested(json) : json.GetRawText();
+            properties[NodeProperties.ExpressionCount] = ExpressionScanner.CountExpressions(
+                nodeType.IsContainer() ? JsonDocument.Parse(raw).RootElement : json).ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (_steps.ContainsKey(name))
             {
                 graph.AddWarning($"{flowId}: duplicate action name '{name}'. Second definition kept as Unknown.");
@@ -317,7 +340,7 @@ public static partial class FlowDefinitionParser
                     else
                     {
                         graph.AddUnresolved(new UnresolvedReference(node.Id, $"runAfter: {predecessor.Name}",
-                            "runAfter refers to an action that is not a sibling in the same scope"));
+                            UnresolvedReference.Broken("runAfter refers to an action that is not a sibling in the same scope")));
                     }
                 }
             }
@@ -368,7 +391,7 @@ public static partial class FlowDefinitionParser
                     }
                     else
                     {
-                        graph.AddUnresolved(new UnresolvedReference(node.Id, reference.Expression, $"{reference.Function}('{reference.Name}') refers to an unknown action"));
+                        graph.AddUnresolved(new UnresolvedReference(node.Id, reference.Expression, UnresolvedReference.Broken($"{reference.Function}('{reference.Name}') refers to an unknown action")));
                     }
 
                     break;
@@ -383,7 +406,7 @@ public static partial class FlowDefinitionParser
                     }
                     else
                     {
-                        graph.AddUnresolved(new UnresolvedReference(node.Id, reference.Expression, $"variable '{reference.Name}' is not initialised in this flow"));
+                        graph.AddUnresolved(new UnresolvedReference(node.Id, reference.Expression, UnresolvedReference.Broken($"variable '{reference.Name}' is not initialised in this flow")));
                     }
 
                     break;

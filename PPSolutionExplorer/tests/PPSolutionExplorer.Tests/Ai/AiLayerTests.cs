@@ -247,6 +247,24 @@ public class AiLayerTests
         Assert.False(tags[1]!["inVocabulary"]!.GetValue<bool>());
     }
 
+    [Fact]
+    public async Task Expression_explanation_is_redacted_and_keyed_per_expression()
+    {
+        using var zip = Fixtures.ZipFolder("solutions/SampleSolution");
+        var graph = ImportParser.Parse(zip, "s.zip").Graph;
+        var step = graph.Find(NodeIds.Action(NodeIds.Flow("11111111-1111-1111-1111-111111111111"), "Notify_admin"))!;
+        var llm = new FakeLlmClient(_ => """{ "explanation": "Run name and status.", "risks": [] }""");
+        var (runner, _, options) = Runner(llm);
+
+        var result = await new StepAiService(runner, Options.Create(options)).ExplainExpressionAsync(
+            graph, step, 0, "inputs/parameters/emailMessage/Body", "workflow()?['run']?['name']", Guid.NewGuid(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(step.Id + "#expr:0", result.NodeId);
+        Assert.Equal(AiKinds.ExpressionExplanation, result.Kind);
+        Assert.DoesNotContain("admin@example.invalid", llm.Requests[0].Messages[1].Content);
+    }
+
     private sealed class SyncProgress(List<(int, int)> sink) : IProgress<(int Done, int Total)>
     {
         public void Report((int Done, int Total) value) => sink.Add(value);

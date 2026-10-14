@@ -27,10 +27,8 @@ internal sealed class ExecutionGraph
         var trigger = graph.Children(flowId).FirstOrDefault(n => n.Type == NodeType.Trigger);
         EntryId = trigger?.Id ?? flowId;
 
-        var runAfter = graph.Edges
-            .Where(e => e.Type == EdgeType.RunsAfter)
-            .Where(e => includeFailureBranches || !e.Status.IsFailureOnly())
-            .ToList();
+        bool Keep(GraphEdge e) => includeFailureBranches || !e.Status.IsFailureOnly();
+        var runAfter = new RunAfterIndex(graph, Keep);
 
         var rootSteps = graph.Children(flowId).Where(n => n.Type != NodeType.Trigger).ToList();
         WireBlock(graph, rootSteps, EntryId, ExitId, branch: null, runAfter);
@@ -62,7 +60,7 @@ internal sealed class ExecutionGraph
     /// Wires one action list. Steps with no runAfter inside the block start from <paramref name="entry"/>;
     /// steps nobody runs after flow into <paramref name="exit"/>.
     /// </summary>
-    private void WireBlock(ComponentGraph graph, IReadOnlyList<GraphNode> steps, string entry, string exit, string? branch, List<GraphEdge> runAfter)
+    private void WireBlock(ComponentGraph graph, IReadOnlyList<GraphNode> steps, string entry, string exit, string? branch, RunAfterIndex runAfter)
     {
         if (steps.Count == 0)
         {
@@ -71,8 +69,8 @@ internal sealed class ExecutionGraph
         }
 
         var ids = steps.Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
-        var blockEdges = runAfter.Where(e => ids.Contains(e.SourceId) && ids.Contains(e.TargetId)).ToList();
-        var allPredecessorEdges = runAfter.Where(e => ids.Contains(e.TargetId)).Select(e => e.TargetId).ToHashSet(StringComparer.Ordinal);
+        var blockEdges = steps.SelectMany(s => runAfter.Into(s.Id)).Where(e => ids.Contains(e.SourceId)).ToList();
+        var allPredecessorEdges = blockEdges.Select(e => e.TargetId).ToHashSet(StringComparer.Ordinal);
         // A step continues to the block exit unless something runs after its *success*.
         // Steps followed only by failure handlers also end the block when they succeed.
         var hasSuccessor = blockEdges
@@ -100,9 +98,10 @@ internal sealed class ExecutionGraph
             }
         }
 
+        var byId = steps.ToDictionary(s => s.Id, StringComparer.Ordinal);
         foreach (var edge in blockEdges)
         {
-            var source = steps.First(s => s.Id == edge.SourceId);
+            var source = byId[edge.SourceId];
             Link(ExitIdOf(source), edge.TargetId, null, edge.Status);
         }
     }
@@ -110,7 +109,7 @@ internal sealed class ExecutionGraph
     private static string ExitIdOf(GraphNode node) => node.Type.IsContainer() ? EndOf(node.Id) : node.Id;
 
     /// <summary>Wires the inside of a step and returns the node to continue from after it.</summary>
-    private string StepExit(ComponentGraph graph, GraphNode step, List<GraphEdge> runAfter)
+    private string StepExit(ComponentGraph graph, GraphNode step, RunAfterIndex runAfter)
     {
         if (!step.Type.IsContainer())
         {
@@ -159,5 +158,11 @@ internal sealed class ExecutionGraph
         }
 
         return end;
+    }
+
+    /// <summary>runAfter edges by target, after the failure-branch filter.</summary>
+    private sealed class RunAfterIndex(ComponentGraph graph, Func<GraphEdge, bool> keep)
+    {
+        public IEnumerable<GraphEdge> Into(string id) => graph.Incoming(id, EdgeType.RunsAfter).Where(keep);
     }
 }

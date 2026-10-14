@@ -12,10 +12,17 @@ internal static class XmlHelpers
         IgnoreComments = true,
     };
 
-    public static XDocument Load(string xml)
+    public static XDocument Load(string xml, string name)
     {
-        using var reader = XmlReader.Create(new StringReader(xml), Settings);
-        return XDocument.Load(reader);
+        try
+        {
+            using var reader = XmlReader.Create(new StringReader(xml), Settings);
+            return XDocument.Load(reader);
+        }
+        catch (XmlException ex)
+        {
+            throw new InvalidDataException($"'{name}' is not valid XML (line {ex.LineNumber}, position {ex.LinePosition}): {ex.Message}", ex);
+        }
     }
 
     /// <summary>Element lookup by local name, ignoring case and namespaces (export casing is not consistent).</summary>
