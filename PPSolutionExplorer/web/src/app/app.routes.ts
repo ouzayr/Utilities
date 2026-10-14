@@ -18,5 +18,13 @@ export const routes: Routes = [
     path: 'imports/:importId/impact',
     loadComponent: () => import('./features/impact/impact.page').then((m) => m.ImpactPage),
   },
+  {
+    path: 'imports/:importId/inventory',
+    loadComponent: () => import('./features/inventory/inventory.page').then((m) => m.InventoryPage),
+  },
+  { path: 'search', loadComponent: () => import('./features/search/search.page').then((m) => m.SearchPage) },
+  { path: 'compare', loadComponent: () => import('./features/compare/compare.page').then((m) => m.ComparePage) },
+  { path: 'rules', loadComponent: () => import('./features/rules/rules.page').then((m) => m.RulesPage) },
+  { path: 'audit', loadComponent: () => import('./features/audit/audit.page').then((m) => m.AuditPage) },
   { path: '**', redirectTo: '' },
 ];

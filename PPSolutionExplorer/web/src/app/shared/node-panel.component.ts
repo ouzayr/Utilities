@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AiStatusService } from '../core/ai-status.service';
 import { ApiService, errorMessage } from '../core/api.service';
-import { AiJob, AiOutput, CONTAINER_TYPES, NodeDetail } from '../core/models';
+import { AiJob, AiOutput, CONTAINER_TYPES, ExpressionInfo, NodeDetail } from '../core/models';
 import { AiOutputComponent } from './ai-output.component';
 
 /** Node detail: properties, links, unresolved references, tags, notes, raw JSON and AI outputs. */
@@ -68,6 +68,23 @@ import { AiOutputComponent } from './ai-output.component';
           <button type="submit" [disabled]="!newNote.trim()">Save note</button>
         </form>
       </div>
+
+      @if (expressions().length) {
+        <div class="card">
+          <h3>Expressions ({{ expressions().length }})</h3>
+          @for (x of expressions(); track x.index) {
+            <div style="margin-bottom:.5rem">
+              <div class="muted">{{ x.path }}
+                @if (aiStatus.enabled()) { <button class="ai-button" (click)="runJob('expression-explanation', d.node.id + '#expr:' + x.index)">Explain</button> }
+              </div>
+              <pre style="margin:.2rem 0">{{ x.expression }}</pre>
+              @if (x.references.length) {
+                <div class="muted">reads: {{ describeRefs(x) }}</div>
+              }
+            </div>
+          }
+        </div>
+      }
 
       @if (aiStatus.enabled()) {
         <div class="card">
@@ -146,6 +163,7 @@ export class NodePanelComponent {
   protected readonly detail = signal<NodeDetail | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly job = signal<AiJob | null>(null);
+  protected readonly expressions = signal<ExpressionInfo[]>([]);
   protected readonly streaming = signal(false);
   protected readonly streamText = signal('');
   protected newTag = '';
@@ -182,6 +200,11 @@ export class NodePanelComponent {
       next: (d) => this.detail.set(d),
       error: (e) => this.error.set(errorMessage(e)),
     });
+    this.api.expressions(importId, nodeId).subscribe({ next: (x) => this.expressions.set(x), error: () => this.expressions.set([]) });
+  }
+
+  protected describeRefs(x: ExpressionInfo): string {
+    return x.references.map((r) => (r.name ? `${r.function}('${r.name}')` : `${r.function}()`)).join(', ');
   }
 
   private reload(): void {
@@ -227,8 +250,8 @@ export class NodePanelComponent {
     this.api.acceptTag(outputId, tag).subscribe({ next: () => this.reload(), error: (e) => this.error.set(errorMessage(e)) });
   }
 
-  protected runJob(kind: string): void {
-    this.api.aiJob(kind, this.importId(), this.nodeId()).subscribe({
+  protected runJob(kind: string, nodeId = this.nodeId()): void {
+    this.api.aiJob(kind, this.importId(), nodeId).subscribe({
       next: (job) => { this.job.set(job); this.poll(job.id); },
       error: (e) => this.error.set(errorMessage(e)),
     });

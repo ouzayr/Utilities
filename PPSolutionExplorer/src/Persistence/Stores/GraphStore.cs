@@ -214,7 +214,7 @@ public sealed class GraphStore(ExplorerDbContext db)
         return summaries.Select((s, i) =>
         {
             var flowId = FlowIdOf(s.Id);
-            return new SearchHit(s, flowId, flowId is null ? null : flowNames.GetValueOrDefault((results[i].ImportId, flowId)));
+            return new SearchHit(results[i].ImportId, s, flowId, flowId is null ? null : flowNames.GetValueOrDefault((results[i].ImportId, flowId)));
         }).ToList();
     }
 

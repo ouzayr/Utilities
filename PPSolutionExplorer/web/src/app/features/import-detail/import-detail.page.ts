@@ -16,6 +16,8 @@ import { ImportSummary, NodeSummary } from '../../core/models';
       <h1>{{ s.name }} <span class="muted">{{ s.kind }} {{ s.version ?? '' }}</span></h1>
       <div class="row">
         <a class="button" [routerLink]="['/imports', s.id, 'search']">Search</a>
+        <a class="button" [routerLink]="['/imports', s.id, 'inventory']">Inventory &amp; complexity</a>
+        <a class="button" routerLink="/compare" [queryParams]="{ right: s.id }">Compare with…</a>
         <a class="button" [href]="api.docsUrl(s.id, 'html', undefined, includeEnvValues)" target="_blank">Docs (HTML)</a>
         <a class="button" [href]="api.docsUrl(s.id, 'md', undefined, includeEnvValues)">Docs (Markdown)</a>
         <label><input type="checkbox" [(ngModel)]="includeEnvValues" /> include environment variable values</label>

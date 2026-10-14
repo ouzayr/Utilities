@@ -10,7 +10,7 @@ public sealed record NodeSummary(
     string Id, NodeType Type, string Name, string? ParentId, string? Branch, string? SubType,
     string? Connector, string? Operation, IReadOnlyList<string> Tags);
 
-public sealed record SearchHit(NodeSummary Node, string? FlowId, string? FlowName);
+public sealed record SearchHit(Guid ImportId, NodeSummary Node, string? FlowId, string? FlowName);
 
 public sealed record ImpactItem(NodeSummary Node, int Depth, string Via, string? FlowId, string? FlowName);
 

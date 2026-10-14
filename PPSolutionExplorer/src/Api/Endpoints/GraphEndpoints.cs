@@ -71,6 +71,7 @@ public static class GraphEndpoints
                 nodes = graph.Nodes.OrderBy(n => n.Order).Select(n => new
                 {
                     n.Id, n.Type, n.Name, n.ParentId, n.Branch, n.SubType, n.IsPlaceholder,
+                    Connector = n.SubType is "Http" or "HttpWebhook" ? "http" : n.Property(NodeProperties.ConnectorId),
                     InFlow = n.Id == flowId || n.Id.StartsWith(flowId + "/", StringComparison.Ordinal),
                 }),
                 edges = graph.Edges.Select(e => new { e.SourceId, e.TargetId, e.Type, e.Status, e.Expression }),
@@ -132,6 +133,8 @@ public static class GraphEndpoints
         });
 
         group.MapGet("/facets", (Guid importId, GraphStore store, CancellationToken ct) => store.GetFacetsAsync(importId, ct));
+
+        api.MapGet("/facets", (GraphStore store, CancellationToken ct) => store.GetFacetsAsync(null, ct));
 
         api.MapGet("/quality/rules", (string? profile, IOptions<QualityOptions> quality) =>
         {

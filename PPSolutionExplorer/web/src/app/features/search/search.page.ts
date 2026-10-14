@@ -10,8 +10,13 @@ import { AiOutputComponent } from '../../shared/ai-output.component';
   selector: 'app-search-page',
   imports: [FormsModule, RouterLink, AiOutputComponent],
   template: `
-    <a [routerLink]="['/imports', importId()]">← Back to import</a>
-    <h1>Search</h1>
+    @if (importId()) {
+      <a [routerLink]="['/imports', importId()]">← Back to import</a>
+      <h1>Search</h1>
+    } @else {
+      <h1>Search all imports</h1>
+      <p class="muted">Searches every import in the workspace. Open an import to search only that one.</p>
+    }
 
     @if (aiStatus.enabled()) {
       <form class="card" (ngSubmit)="askAi()">
@@ -66,7 +71,7 @@ import { AiOutputComponent } from '../../shared/ai-output.component';
       }
       <p>{{ r.results.length }} result(s)</p>
       <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Flow</th><th>Tags</th></tr></thead>
+        <thead><tr><th>Name</th><th>Type</th><th>Flow</th><th>Tags</th>@if (!importId()) {<th>Import</th>}</tr></thead>
         <tbody>
           @for (h of r.results; track h.node.id) {
             <tr>
@@ -74,12 +79,13 @@ import { AiOutputComponent } from '../../shared/ai-output.component';
               <td>{{ h.node.type }}{{ h.node.subType ? ' · ' + h.node.subType : '' }}{{ h.node.operation ? ' · ' + h.node.operation : '' }}</td>
               <td>
                 @if (h.flowId) {
-                  <a [routerLink]="['/imports', importId(), 'flow']" [queryParams]="{ flowId: h.flowId, nodeId: h.node.id }">{{ h.flowName }}</a>
+                  <a [routerLink]="['/imports', h.importId, 'flow']" [queryParams]="{ flowId: h.flowId, nodeId: h.node.id }">{{ h.flowName }}</a>
                 } @else {
-                  <a [routerLink]="['/imports', importId(), 'impact']" [queryParams]="{ nodeId: h.node.id }">impact</a>
+                  <a [routerLink]="['/imports', h.importId, 'impact']" [queryParams]="{ nodeId: h.node.id }">impact</a>
                 }
               </td>
               <td>@for (t of h.node.tags; track t) { <span class="chip">{{ t }}</span> }</td>
+              @if (!importId()) { <td>{{ importName(h.importId) }}</td> }
             </tr>
           }
         </tbody>
@@ -90,7 +96,7 @@ import { AiOutputComponent } from '../../shared/ai-output.component';
 export class SearchPage implements OnInit {
   private readonly api = inject(ApiService);
   protected readonly aiStatus = inject(AiStatusService);
-  readonly importId = input.required<string>();
+  readonly importId = input<string>();
 
   protected readonly nodeTypes = NODE_TYPES;
   protected readonly facets = signal<Facets | null>(null);
@@ -107,8 +113,15 @@ export class SearchPage implements OnInit {
   protected onlyUnresolved = false;
   protected question = '';
 
+  private readonly importNames = signal(new Map<string, string>());
+
   ngOnInit(): void {
     this.api.facets(this.importId()).subscribe((f) => this.facets.set(f));
+    this.api.imports().subscribe((list) => this.importNames.set(new Map(list.map((i) => [i.id, `${i.name} ${i.version ?? ''}`]))));
+  }
+
+  protected importName(id: string): string {
+    return this.importNames().get(id) ?? id;
   }
 
   protected run(): void {

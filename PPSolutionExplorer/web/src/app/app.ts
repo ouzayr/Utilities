@@ -8,6 +8,13 @@ import { AiStatusService } from './core/ai-status.service';
   template: `
     <header class="topbar">
       <a routerLink="/" class="brand">PP Solution Explorer</a>
+      <nav class="row">
+        <a routerLink="/">Imports</a>
+        <a routerLink="/search">Search all</a>
+        <a routerLink="/compare">Compare</a>
+        <a routerLink="/rules">Rules</a>
+        <a routerLink="/audit">Audit</a>
+      </nav>
       <span class="spacer"></span>
       @let ai = aiStatus.status();
       <span class="pill" [class.pill-ai]="ai?.enabled && ai?.reachable" [title]="ai?.error ?? ''">

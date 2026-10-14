@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AiJob, AiOutput, AiStatus, Facets, FlowGraph, ImpactResult, ImportSummary, NodeDetail, NodeSummary, NodeType, Note,
+  AiJob, AiOutput, AiStatus, AuditEntry, DiffResult, ExpressionInfo, Facets, FlowComplexity, InventoryReport, RuleCatalog, FlowGraph, ImpactResult, ImportSummary, NodeDetail, NodeSummary, NodeType, Note,
   PathRequest, PathResult, QualityFinding, SearchQuery, SearchResponse, Tag,
 } from './models';
 
@@ -50,12 +50,44 @@ export class ApiService {
     return this.http.get<ImpactResult>(`${this.base}/imports/${importId}/impact`, { params: { nodeId, depth } });
   }
 
-  quality(importId: string, flowId: string): Observable<QualityFinding[]> {
-    return this.http.get<QualityFinding[]>(`${this.base}/imports/${importId}/quality`, { params: { flowId } });
+  quality(importId: string, flowId: string, profile?: string): Observable<QualityFinding[]> {
+    return this.http.get<QualityFinding[]>(`${this.base}/imports/${importId}/quality`, { params: profile ? { flowId, profile } : { flowId } });
   }
 
-  facets(importId: string): Observable<Facets> {
-    return this.http.get<Facets>(`${this.base}/imports/${importId}/facets`);
+  facets(importId?: string): Observable<Facets> {
+    return this.http.get<Facets>(importId ? `${this.base}/imports/${importId}/facets` : `${this.base}/facets`);
+  }
+
+  complexity(importId: string, flowId?: string): Observable<FlowComplexity[]> {
+    return this.http.get<FlowComplexity[]>(`${this.base}/imports/${importId}/complexity`, { params: flowId ? { flowId } : {} });
+  }
+
+  rules(profile?: string): Observable<RuleCatalog> {
+    return this.http.get<RuleCatalog>(`${this.base}/quality/rules`, { params: profile ? { profile } : {} });
+  }
+
+  diff(left: string, right: string, flowId?: string): Observable<DiffResult> {
+    return this.http.get<DiffResult>(`${this.base}/diff`, { params: flowId ? { left, right, flowId } : { left, right } });
+  }
+
+  diffUrl(left: string, right: string, format: 'md' | 'html', flowId?: string): string {
+    let params = new HttpParams().set('left', left).set('right', right).set('format', format);
+    if (flowId) {
+      params = params.set('flowId', flowId);
+    }
+    return `${this.base}/diff?${params.toString()}`;
+  }
+
+  inventory(importId: string): Observable<InventoryReport> {
+    return this.http.get<InventoryReport>(`${this.base}/imports/${importId}/inventory`);
+  }
+
+  audit(target?: string): Observable<AuditEntry[]> {
+    return this.http.get<AuditEntry[]>(`${this.base}/audit`, { params: target ? { target } : {} });
+  }
+
+  expressions(importId: string, nodeId: string): Observable<ExpressionInfo[]> {
+    return this.http.get<ExpressionInfo[]>(`${this.base}/imports/${importId}/expressions`, { params: { nodeId } });
   }
 
   search(query: SearchQuery): Observable<SearchResponse> {
@@ -98,7 +130,7 @@ export class ApiService {
     return this.http.get<AiJob>(`${this.base}/ai/jobs/${id}`);
   }
 
-  aiSearch(question: string, importId: string): Observable<SearchResponse> {
+  aiSearch(question: string, importId?: string): Observable<SearchResponse> {
     return this.http.post<SearchResponse>(`${this.base}/ai/search`, { question, importId });
   }
 
