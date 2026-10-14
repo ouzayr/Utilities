@@ -193,7 +193,38 @@ Sources, later wins: `appsettings.json` → `appsettings.{Environment}.json` →
 | `Ai:TagVocabulary` | 16 tags | Fixed vocabulary for tag suggestions. |
 | `Ai:Redaction:EnvironmentVariableValues` / `Secrets` / `Emails` / `Guids` / `TenantUrls` | `true` | What is masked before prompting. |
 | `Ai:Redaction:ExtraPatterns` | `[]` | Extra regexes masked as `[REDACTED]` (e.g. customer codes). |
+| `Ai:TagVocabulary` | 16 built-in tags | A configured list **replaces** the defaults. |
+| `Quality:DefaultProfile` | `default` | Profile used when none is requested. |
+| `Quality:Profiles:<name>:Rules:<PPSE0xx>:Enabled` / `:Severity` | enabled / rule default | Turn a rule off or re-grade it (`Info`, `Warning`, `Error`). |
+| `Quality:Profiles:<name>:MaxNestingDepth` / `:MaxActions` | 6 / 250 | Thresholds for PPSE003 / PPSE014. |
+| `Quality:Profiles:<name>:SecretKeys` | built-in list | Input key fragments treated as secrets (PPSE012). Replaces the defaults. |
+| `Inventory:PremiumConnectors` | starter list | Connector API names (or `builtin:http`) flagged premium. Replaces the defaults. **Verify against current licensing.** |
+| `Inventory:DeprecatedOperations` | starter list | `connector`, `connector/operationId` or `type:ActionType`. Replaces the defaults. |
 | `Logging:LogLevel:*` | Information/Warning | Standard ASP.NET Core logging (console; journald under systemd). |
+
+### 7.1 Example: team rule profile
+```json
+// appsettings.Local.json
+{
+  "Quality": {
+    "DefaultProfile": "contoso",
+    "Profiles": {
+      "contoso": {
+        "MaxNestingDepth": 4,
+        "MaxActions": 150,
+        "Rules": {
+          "PPSE002": { "Severity": "Warning" },
+          "PPSE013": { "Enabled": false }
+        }
+      }
+    }
+  },
+  "Inventory": {
+    "PremiumConnectors": [ "builtin:http", "shared_commondataserviceforapps", "shared_sql" ]
+  }
+}
+```
+Share the snippet in the team's repo; every consultant gets the same findings. Configured lists replace the built-in defaults (the app deliberately avoids the .NET binder behaviour of appending to defaults).
 
 ## 8. Enabling the AI layer (after the model is chosen)
 
@@ -247,6 +278,9 @@ Then in the UI: open a flow → *Summarise flow*, a step → *Describe step*, Se
 | 7 | Docs (HTML) | Downloaded file with steps tree, data access, quality findings |
 | 8 | From another machine: `curl http://<host-ip>:5080` | Connection refused (loopback only) |
 | 9 | AI on: *Summarise flow* | Job succeeds; output framed "AI-generated · model · prompt v1 · time" |
+| 10 | Import `tests/fixtures/solutions/SampleSolution_v2` too, then *Compare* (baseline v1.0.0.3, target v1.0.0.4) | 1 added, 1 removed, 3 changed, 1 moved; *View with overlay* colours the canvas |
+| 11 | *Audit* page | `import.create` entries with your OS user |
+| 12 | *Rules* page | 14 rules, profile `default` |
 
 ## 10. Operations
 

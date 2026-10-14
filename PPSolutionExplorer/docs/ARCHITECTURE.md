@@ -32,8 +32,8 @@ Core  ◄── Parsers
 |---|---|
 | `GraphNode(Id, Type, Name, ParentId, Branch, SubType, RawJson, Properties, Order)` | `RawJson` keeps the source verbatim. Containers store their JSON without nested action collections (children have their own). |
 | `GraphEdge(SourceId, TargetId, Type, Status, Expression)` | `Status` is a `[Flags] RunStatus` for `RunsAfter`. Duplicate edges are merged (status OR'd). |
-| `UnresolvedReference(NodeId, RawExpression, Reason)` | Anything that cannot be resolved statically. |
-| `ComponentGraph` | In-memory graph with children/descendant helpers, placeholder handling, warnings. |
+| `UnresolvedReference(NodeId, RawExpression, Reason)` | Anything that cannot be resolved statically. Reasons prefixed `broken: ` (unknown action, uninitialised variable, non-sibling runAfter) are broken references (`IsBroken`); the rest are dynamic. |
+| `ComponentGraph` | In-memory graph with indexed children and in/out adjacency (O(degree) lookups), placeholder handling, warnings. |
 
 **Node types:** Solution, Flow, Trigger, Action, Scope, Condition, Loop, Switch, App, Table, Column, Relationship, EnvVariable, ConnectionReference, Connector, Unknown.
 **Edge types:** RunsAfter, DataFlow, Reads, Writes, Calls, Triggers, UsesEnvVar, UsesConnection, Contains.
@@ -93,6 +93,31 @@ Edge direction conventions: `RunsAfter` predecessor → successor; `DataFlow` pr
 
 A property test checks DP count == enumerated count on 200 random nested DAGs.
 
+## 4a. Quality, complexity and comparison (`src/Core/Quality`, `src/Core/Diff`)
+
+**Rules** – `QualityRules.Catalog` defines 14 rules (id, title, category, default severity). `Evaluate(graph, flowId, profile)` applies a `QualityProfile` (per-rule `Enabled`/`Severity`, `MaxNestingDepth`, `MaxActions`, `SecretKeys`). Profiles come from `Quality:Profiles:<name>`; `default` is built in.
+
+| Rule | Detects |
+|---|---|
+| PPSE001 | No step runs after Failed/TimedOut |
+| PPSE002 | Designer default names |
+| PPSE003 | Nesting deeper than `MaxNestingDepth` |
+| PPSE004 | Dynamic (run-time) reference |
+| PPSE005 | GUID literal in inputs |
+| PPSE006 | Unknown action type |
+| PPSE007 | Dataverse List rows without `$top`/pagination |
+| PPSE008 | Broken reference (Error) |
+| PPSE009 | Variable initialised but never read (no outgoing DataFlow from the InitializeVariable action) |
+| PPSE010 | Pure data operation (Compose/Select/Filter/Parse JSON/Join/Table) whose output is never used |
+| PPSE011 | Foreach calling connectors without concurrency, unless the body mutates variables (must stay sequential) |
+| PPSE012 | Literal value for a secret-like input key (password, token, authorization…); only the key is reported |
+| PPSE013 | Literal http(s) URL in inputs |
+| PPSE014 | More steps than `MaxActions` |
+
+**Complexity** – `ComplexityCalculator`: actions, containers, branches (2 per condition, cases + default per switch), max depth, expression count (stored per step at parse time), DP path count. Score = actions + 2·branches + 5·depth + 0.5·expressions + 10·log10(paths+1); Low < 50 ≤ Medium < 150 ≤ High < 400 ≤ VeryHigh.
+
+**Diff** – `GraphDiffer.Diff(left, right, flowId?)` matches nodes by deterministic ID. Node changes: Added, Removed, Changed, Moved (parent/branch changed). Property-level changes are JSON paths in the raw source plus node properties (`property:version`). Ignored noise: `metadata/operationMetadataId`, the `file`, `solutionMetadata` and expression-count properties. Edge changes (except Contains) include runAfter status-set changes. Renames are not inferred. Drift between environments uses the same function on exports from each environment (solution components keep their IDs across environments).
+
 ## 5. Persistence (`src/Persistence`)
 
 PostgreSQL via EF Core 9 + Npgsql; snake_case columns; migrations in `Persistence/Migrations`, applied at startup (`Database:MigrateOnStartup`).
@@ -106,6 +131,7 @@ PostgreSQL via EF Core 9 + Npgsql; snake_case columns; migrations in `Persistenc
 | `tags`, `notes` | `id` | Sidecar annotations keyed by **node id** (not import) → survive re-import. Unique `(node_id, tag)`. |
 | `ai_outputs` | `id` | Content + model, prompt name/version, cache key, `ai_status`, error, timestamp. |
 | `ai_jobs` | `id` | Background job state and progress. |
+| `audit_log` | `id` | Append-only: time, action (`import.create`, `tag.add`, `note.delete`, `ai.job`, `ai.tag-accept`…), target, details, OS user. |
 
 Deleting an import cascades to its nodes/edges/unresolved, keeps tags/notes.
 
@@ -127,14 +153,20 @@ Deleting an import cascades to its nodes/edges/unresolved, keeps tags/notes.
 | `GET /api/imports/{id}/flow-graph?flowId=` | Nodes/edges for the viewer. |
 | `POST /api/imports/{id}/paths` | `{flowId, fromNodeId?, toNodeId?, includeFailureBranches?, maxPaths?}`. |
 | `GET /api/imports/{id}/impact?nodeId=&depth=` | Impact analysis. |
-| `GET /api/imports/{id}/quality?flowId=` | Rule findings. |
-| `GET /api/imports/{id}/facets` | Known values for search/AI validation. |
+| `GET /api/imports/{id}/quality?flowId=[&profile=]` | Rule findings. |
+| `GET /api/imports/{id}/facets`, `GET /api/facets` | Known values for search/AI validation (per import / workspace). |
+| `GET /api/imports/{id}/expressions?nodeId=` | Expressions in a step (index, JSON path, references). |
+| `GET /api/imports/{id}/complexity[?flowId=]` | Complexity per flow. |
+| `GET /api/imports/{id}/inventory` | Connector inventory, premium/deprecated usage, flows by complexity. |
+| `GET /api/quality/rules[?profile=]` | Rule catalogue with the effective profile settings. |
+| `GET /api/diff?left=&right=[&flowId=][&format=json|md|html]` | Version comparison / drift; `md`/`html` return a change log. |
+| `GET /api/audit[?target=&take=]` | Audit log. |
 | `POST /api/search` | Structured `SearchQuery`; unknown facet values are dropped and reported. |
 | `GET/POST /api/tags`, `DELETE /api/tags/{id}` | Tags. |
 | `GET/POST /api/notes`, `PUT/DELETE /api/notes/{id}` | Notes. |
 | `GET /api/imports/{id}/docs?format=md|html&flowId=&includeAi=&includeEnvValues=` | Documentation export (file download). |
 | `GET /api/ai/status` | Enabled/reachable/model/prompts. |
-| `POST /api/ai/jobs` `{kind, importId, nodeId}` | Queue `flow-summary`, `action-description`, `tag-suggestions`, `quality-explanation` (nodeId `<node>#<ruleId>`). 202 + job. |
+| `POST /api/ai/jobs` `{kind, importId, nodeId}` | Queue `flow-summary`, `action-description`, `tag-suggestions`, `quality-explanation` (nodeId `<node>#<ruleId>`), `expression-explanation` (nodeId `<node>#expr:<index>`; the expression is re-read server-side). 202 + job. |
 | `GET /api/ai/jobs[/{id}]`, `GET /api/ai/outputs?nodeId=` | Job status, outputs. |
 | `GET /api/ai/describe/stream?importId=&nodeId=` | SSE stream of a step description. |
 | `POST /api/ai/search` `{question, importId}` | NL → validated `SearchQuery` + results. |
@@ -192,8 +224,14 @@ Angular 20, standalone components, signals, strict TS, lazy routes, `withCompone
 | `/imports/:importId/flow?flowId=&nodeId=` | `FlowViewerPage` – Cytoscape + ELK (layered, `INCLUDE_CHILDREN`), path tracing, quality, `NodePanelComponent` |
 | `/imports/:importId/search` | `SearchPage` – facets + AI question box |
 | `/imports/:importId/impact?nodeId=` | `ImpactPage` |
+| `/imports/:importId/inventory` | `InventoryPage` – flows by complexity, connectors, deprecated usage |
+| `/search` | `SearchPage` without an import – workspace-wide |
+| `/compare?left=&right=` | `ComparePage` – diff summary, per-flow changes, change log links |
+| `/rules`, `/audit` | Rule catalogue/profile; audit log |
 
-`flow-elements.ts` (unit-tested) converts the graph to Cytoscape elements: containers are compound nodes, condition/switch branches are compound "lanes", root steps get an implicit edge from the trigger, failure-only `runAfter` edges are red dashed, data flow is an optional overlay. Cytoscape/ELK (~460 kB gzip) load only on the flow page; initial bundle ~86 kB gzip. `AiOutputComponent` always shows model, prompt and timestamp in a dashed purple frame. Production build disables critical-CSS inlining because its inline `onload` handler violates the CSP.
+Flow viewer extras: `?compareTo=<baseline import>` turns on the diff overlay; double-click collapses a container (`toElements` hides descendants and re-attaches edges to the collapsed node); colour modes `type | connector | quality | diff`; `dependencies()` computes upstream/downstream via runAfter + data flow; minimap is a PNG snapshot of the full graph with a viewport rectangle.
+
+`flow-elements.ts` (unit-tested, incl. collapse, colour modes and dependencies) converts the graph to Cytoscape elements: containers are compound nodes, condition/switch branches are compound "lanes", root steps get an implicit edge from the trigger, failure-only `runAfter` edges are red dashed, data flow is an optional overlay. Cytoscape/ELK (~460 kB gzip) load only on the flow page; initial bundle ~86 kB gzip. `AiOutputComponent` always shows model, prompt and timestamp in a dashed purple frame. Production build disables critical-CSS inlining because its inline `onload` handler violates the CSP.
 
 ## 9. Security summary
 
@@ -214,6 +252,9 @@ Angular 20, standalone components, signals, strict TS, lazy routes, `withCompone
 | `Parsers/*` | Golden file for the sample solution; nesting/branches; unknown types; entity-set mapping; unresolved handling; expression scanner; Dataverse analyzer. |
 | `Core/*` | Path tracer (parallel branches, failure toggle, cap, nested sample, between steps, DP==enumerated property test); quality rules. |
 | `Ai/AiLayerTests` | Prompt library, loopback guard, redactor, schema validator, retry→failed, provenance + cache, hierarchical summary order + no leaks, chunking on step boundaries + combine, NL search validation, tag vocabulary recheck. Fake `ILlmClient`. |
+| `Core/GraphDifferTests` | Identical imports, added/removed/changed/moved, property path diff, runAfter status change, solution version, designer noise ignored. Fixture `SampleSolution_v2`. |
+| `Core/QualityRulesTests`, `Core/LargeFlowTests` | All new rules on `flows/quality-cases.json`, profiles, complexity; ~2,000-step flow parsed/traced/checked in well under 10 s (≈0.4 s). |
+| `Api/ReportingTests` | Inventory (premium/deprecated, list replacement), Mermaid structure, expression listing, JSON error position, unknown schema warning. |
 | `Persistence/GraphStoreTests` (`Category=Postgres`) | CTE subgraph round-trip, impact, search filters, facets. Self-skip unless `PPSE_TEST_CONNECTION`. |
 | `Ai/LlamaLiveTests` (`Category=LlamaLive`) | Real server health, tokenize, schema-constrained output. Excluded by the default filter. |
 | `web` (Karma) | `toElements` conversion. |

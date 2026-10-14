@@ -13,21 +13,24 @@ An optional local AI layer (llama.cpp) adds summaries, tag suggestions and plain
 | What it never does | Modify, re-import or deploy customer solutions. Tags, notes and AI output live in its own database. |
 | Where data goes | Nowhere. Runs on `127.0.0.1`. The only permitted outbound call is to a llama.cpp server on localhost. |
 | Stack | .NET 9 Web API + EF Core/PostgreSQL · Angular 20 + Cytoscape.js/ELK · llama.cpp (optional) |
-| Status | Roadmap **MVP complete**; parts of Phase 2/3 included (see below). 48 backend tests + 3 frontend tests passing. |
+| Status | Roadmap **MVP complete**; most of Phase 2/3 included (see below). 68 backend tests + 6 frontend tests passing. |
 
 ## Features
 
 | Feature | What you get |
 |---|---|
 | **Import** | Parses solution zip in memory: `solution.xml`, `customizations.xml`, `Workflows/*.json`, environment variables, connection references, tables/columns, apps. Classic workflows/business rules are reported, not parsed. |
-| **Flow viewer** | Interactive graph: scopes, loops, conditions (true/else lanes), switches (case lanes), runAfter edges (failure-only edges in red), optional data-flow overlay. Click any step for details and raw JSON. |
-| **Search** | Text, action type/operation, connector, table, tag, "has unresolved references", optional raw-JSON search. |
+| **Flow viewer** | Interactive graph: scopes, loops, conditions (true/else lanes), switches (case lanes), runAfter edges (failure-only edges in red), optional data-flow overlay. Collapse/expand containers, minimap, colour by step type / connector / quality / changes, upstream-downstream dependency highlight. Click any step for details, expressions and raw JSON. |
+| **Search** | Text, action type/operation, connector, table, tag, "has unresolved references", optional raw-JSON search. Per import or across the whole workspace. |
+| **Version comparison / drift** | Compare any two imports (two versions, or DEV vs PROD exports): added/removed/changed/moved steps, property-level diff, runAfter changes, canvas overlay, change log export (Markdown/HTML). |
 | **Tags & notes** | Per component, stored in our DB, keyed by a stable ID so they survive re-imports. |
 | **Path tracing** | Exact path count (DP) then enumeration up to a cap (default 10,000). From trigger or any step, to end or any step. Failure/timeout branches toggleable. Loops traversed once and flagged. |
 | **Impact analysis** | "What is affected if X changes" for tables, columns, env variables, connection references, connectors, child flows. Recursive CTE in PostgreSQL. |
-| **Quality rules** | Deterministic: no error handling, default step names, deep nesting, unresolved references, hard-coded GUIDs, unknown action types, List rows without `$top`. |
-| **Documentation export** | Markdown or HTML per solution or per flow: overview, step tree, data access, dependencies, unresolved refs, quality findings, tags, notes. AI blocks clearly labelled. Env variable values excluded unless requested. |
-| **AI (optional)** | Hierarchical flow summary, per-step description (streamed), tag suggestions (user must accept), natural language → validated structured search, explanation of quality findings. Every output carries model, prompt version, timestamp. |
+| **Quality rules** | 14 deterministic rules (PPSE001–014): error handling, naming, nesting, broken vs dynamic references, unused variables/outputs, sequential loops, List rows without `$top`, hard-coded GUIDs/URLs, plain-text secrets, large flows. Configurable profiles per team/project. **Complexity score** per flow. |
+| **Inventory** | Connectors per flow/solution, connection references, premium usage, deprecated connectors/operations (configurable lists), complexity ranking. |
+| **Documentation export** | Markdown or HTML per solution or per flow: overview, Mermaid diagram, complexity, step tree, data access, dependencies, unresolved refs, quality findings, connector inventory, tags, notes. AI blocks clearly labelled. Env variable values excluded unless requested. |
+| **Audit log** | Append-only record of imports, tags, notes, AI requests and accepted AI tags (who/when). |
+| **AI (optional)** | Hierarchical flow summary, per-step description (streamed), expression explanation, tag suggestions (user must accept), natural language → validated structured search, explanation of quality findings. Every output carries model, prompt version, timestamp. |
 
 ### Core principles (from `CLAUDE.md`, enforced in code)
 
@@ -96,6 +99,8 @@ docs/             ARCHITECTURE.md (technical), DEPLOYMENT.md (step-by-step deplo
 | `Ai:BaseUrl` / `Ai:Model` | `http://127.0.0.1:8080` / empty | Model empty = ask the server. Must be loopback. |
 | `Ai:ContextSize` / `Ai:ParallelSlots` | 32768 / 2 | Must match `llama-server -c` and `--parallel`. |
 | `Ai:Redaction:*` | all on | Env var values, secrets, emails, GUIDs, tenant URLs, extra regexes. |
+| `Quality:Profiles:<name>` | built-in default | Per-rule `Enabled`/`Severity`, `MaxNestingDepth`, `MaxActions`, `SecretKeys`. |
+| `Inventory:PremiumConnectors` / `DeprecatedOperations` | starter lists | Configurable; verify against current Microsoft licensing/deprecation notices. |
 
 Full reference: `docs/DEPLOYMENT.md` §7.
 
@@ -104,7 +109,10 @@ Full reference: `docs/DEPLOYMENT.md` §7.
 - **Export layout is assumed, not certified.** The parser follows the documented/observed solution layout. Validate against a few real exports from your tenants before relying on it; unknown constructs are kept as `Unknown`, never dropped.
 - Table names in actions are entity-set names (`contacts`). They are mapped to logical names (`contact`) **only** when the table's metadata is in the same solution; otherwise kept as-is.
 - Path tracing works within one flow; it does not follow into child flows (the `Calls` edge is shown and used by impact analysis).
-- Power Fx / canvas app internals, live Dataverse sync and version diff are **not implemented** (Phase 3).
+- Read-only by design: no editing, publishing, find-and-replace or environment connection. See `docs/REQUIREMENTS-GAP-ANALYSIS.md` for what that rules out and the options.
+- Comparison matches steps by ID; a renamed action shows as removed + added (no similarity guessing).
+- Premium/deprecated flags come from configurable lists, not Microsoft data. Owners and run history are not in exports.
+- Power Fx / canvas app internals and live Dataverse sync are **not implemented** (Phase 3).
 - No authentication: it is a single-user local tool bound to loopback. Do not expose it on a network.
 - Docker image build and the `llama` compose profile were not executed in the build environment; the native publish path was tested end-to-end.
 - AI was verified end-to-end against a protocol-compatible stub server, not a real model. Quality of AI output depends on the model you pick.
@@ -116,13 +124,15 @@ Full reference: `docs/DEPLOYMENT.md` §7.
 | MVP | Solution zip upload, flow viewer, search, tags, path tracing, doc export | Done |
 | 2 | Tables/columns, env variables, connection references, impact analysis | Done |
 | 2 | Flow summary (AI) | Done (needs a model) |
-| 3 | Quality rules + AI explanation, per-action description, tag suggestions, NL search | Done (rules engine is basic) |
-| 3 | Canvas/model-driven app internals, Power Fx, live Dataverse sync, version diff | Not started |
+| 3 | Quality rules (14, configurable) + AI explanation, per-action description, tag suggestions, NL search | Done |
+| 3 | Version diff / environment drift (from exports) | Done |
+| 3 | Canvas/model-driven app internals, Power Fx, live Dataverse sync | Not started |
 | Later | Embeddings + pgvector semantic search | Not started |
 
 ## Further reading
 
 - `docs/ARCHITECTURE.md` – components, data model, algorithms, AI pipeline, security.
 - `docs/DEPLOYMENT.md` – step-by-step installation on Windows/Linux, Docker, enabling AI, operations, troubleshooting.
+- `docs/REQUIREMENTS-GAP-ANALYSIS.md` – the "Flow Workbench" wish list mapped to what is built, what is blocked and why.
 - `CLAUDE.md` – the project rules this implementation follows.
 - `prompts/README.md` – prompt versioning rules.
