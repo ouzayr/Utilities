@@ -1,0 +1,22 @@
+# systemd unit for a published Linux build. Install: see docs/DEPLOYMENT.md, section "Linux service".
+[Unit]
+Description=PP Solution Explorer
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ppse
+WorkingDirectory=/opt/ppse
+ExecStart=/opt/ppse/PPSolutionExplorer.Api
+Environment=ASPNETCORE_ENVIRONMENT=Production
+EnvironmentFile=-/etc/ppse/ppse.env
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/ppse
+
+[Install]
+WantedBy=multi-user.target

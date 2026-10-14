@@ -1,0 +1,10 @@
+**/bin
+**/obj
+**/node_modules
+web/.angular
+web/dist
+src/Api/wwwroot
+publish
+tests
+.git
+*.gguf

@@ -1,0 +1,15 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "triggers": {
+      "Recurrence": { "type": "Recurrence", "recurrence": { "frequency": "Day", "interval": 1 } }
+    },
+    "actions": {
+      "A": { "runAfter": {}, "type": "Compose", "inputs": "a" },
+      "B": { "runAfter": { "A": [ "Succeeded" ] }, "type": "Compose", "inputs": "@outputs('A')" },
+      "C": { "runAfter": { "A": [ "Succeeded" ] }, "type": "Compose", "inputs": "@outputs('A')" },
+      "D": { "runAfter": { "B": [ "Succeeded" ], "C": [ "Succeeded" ] }, "type": "Compose", "inputs": "@{outputs('B')}@{outputs('C')}" },
+      "OnFail": { "runAfter": { "D": [ "Failed" ] }, "type": "Compose", "inputs": "failed" }
+    }
+  }
+}

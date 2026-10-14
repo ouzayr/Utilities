@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+TestResults/
+publish/
+web/node_modules/
+web/dist/
+web/.angular/
+src/Api/wwwroot/
+appsettings.Local.json
+*.gguf
+deploy/.env
+deploy/models/

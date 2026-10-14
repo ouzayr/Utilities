@@ -1,0 +1,111 @@
+# nodes
+column:account.name | Column | name | parent=table:account | branch= | sub= | placeholder
+column:account.telephone1 | Column | telephone1 | parent=table:account | branch= | sub= | placeholder
+column:contact._parentcustomerid_value | Column | _parentcustomerid_value | parent=table:contact | branch= | sub= | placeholder
+column:contact.description | Column | description | parent=table:contact | branch= | sub=ntext
+column:contact.emailaddress1 | Column | emailaddress1 | parent=table:contact | branch= | sub= | placeholder
+column:contact.fullname | Column | fullname | parent=table:contact | branch= | sub=nvarchar
+column:contact.statecode | Column | statecode | parent=table:contact | branch= | sub= | placeholder
+connector:shared_commondataserviceforapps | Connector | shared_commondataserviceforapps | parent= | branch= | sub= | placeholder
+connector:shared_office365 | Connector | shared_office365 | parent= | branch= | sub= | placeholder
+connref:ppse_sharedcommondataserviceforapps_0001 | ConnectionReference | ppse_sharedcommondataserviceforapps_0001 | parent= | branch= | sub=
+connref:ppse_sharedoffice365_0002 | ConnectionReference | ppse_sharedoffice365_0002 | parent= | branch= | sub=
+env:ppse_apibaseurl | EnvVariable | ppse_ApiBaseUrl | parent= | branch= | sub=100000000
+flow:11111111-1111-1111-1111-111111111111 | Flow | Account Sync | parent= | branch= | sub=
+flow:11111111-1111-1111-1111-111111111111/action:Call_API | Action | Call_API | parent=flow:11111111-1111-1111-1111-111111111111/action:Try | branch= | sub=Http
+flow:11111111-1111-1111-1111-111111111111/action:Catch | Scope | Catch | parent=flow:11111111-1111-1111-1111-111111111111 | branch= | sub=Scope
+flow:11111111-1111-1111-1111-111111111111/action:Compose_missing_email | Action | Compose_missing_email | parent=flow:11111111-1111-1111-1111-111111111111/action:Has_email | branch=else | sub=Compose
+flow:11111111-1111-1111-1111-111111111111/action:For_each_contact | Loop | For_each_contact | parent=flow:11111111-1111-1111-1111-111111111111/action:Try | branch= | sub=Foreach
+flow:11111111-1111-1111-1111-111111111111/action:Has_email | Condition | Has_email | parent=flow:11111111-1111-1111-1111-111111111111/action:For_each_contact | branch= | sub=If
+flow:11111111-1111-1111-1111-111111111111/action:Initialize_status | Action | Initialize_status | parent=flow:11111111-1111-1111-1111-111111111111 | branch= | sub=InitializeVariable
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts | Action | List_contacts | parent=flow:11111111-1111-1111-1111-111111111111/action:Try | branch= | sub=OpenApiConnection
+flow:11111111-1111-1111-1111-111111111111/action:Mystery_step | Unknown | Mystery_step | parent=flow:11111111-1111-1111-1111-111111111111/action:Route_by_status | branch=default | sub=SomeFutureActionType
+flow:11111111-1111-1111-1111-111111111111/action:Notify_admin | Action | Notify_admin | parent=flow:11111111-1111-1111-1111-111111111111/action:Catch | branch= | sub=OpenApiConnection
+flow:11111111-1111-1111-1111-111111111111/action:Route_by_status | Switch | Route_by_status | parent=flow:11111111-1111-1111-1111-111111111111 | branch= | sub=Switch
+flow:11111111-1111-1111-1111-111111111111/action:Run_child_flow | Action | Run_child_flow | parent=flow:11111111-1111-1111-1111-111111111111/action:Route_by_status | branch=case:Done | sub=Workflow
+flow:11111111-1111-1111-1111-111111111111/action:Terminate | Action | Terminate | parent=flow:11111111-1111-1111-1111-111111111111/action:Catch | branch= | sub=Terminate
+flow:11111111-1111-1111-1111-111111111111/action:Try | Scope | Try | parent=flow:11111111-1111-1111-1111-111111111111 | branch= | sub=Scope
+flow:11111111-1111-1111-1111-111111111111/action:Update_contact | Action | Update_contact | parent=flow:11111111-1111-1111-1111-111111111111/action:Has_email | branch=true | sub=OpenApiConnection
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified | Trigger | When_an_account_is_modified | parent=flow:11111111-1111-1111-1111-111111111111 | branch= | sub=OpenApiConnectionWebhook
+flow:22222222-2222-2222-2222-222222222222 | Flow | Child Flow | parent= | branch= | sub=
+flow:22222222-2222-2222-2222-222222222222/action:Respond | Action | Respond | parent=flow:22222222-2222-2222-2222-222222222222 | branch= | sub=Response
+flow:22222222-2222-2222-2222-222222222222/trigger:manual | Trigger | manual | parent=flow:22222222-2222-2222-2222-222222222222 | branch= | sub=Request
+sol:ppsesample | Solution | PPSE Sample | parent= | branch= | sub=Unmanaged
+table:account | Table | account | parent= | branch= | sub= | placeholder
+table:contact | Table | contact | parent= | branch= | sub=
+# edges
+connref:ppse_sharedcommondataserviceforapps_0001 -UsesConnection-> connector:shared_commondataserviceforapps
+connref:ppse_sharedoffice365_0002 -UsesConnection-> connector:shared_office365
+flow:11111111-1111-1111-1111-111111111111 -UsesConnection-> connref:ppse_sharedcommondataserviceforapps_0001
+flow:11111111-1111-1111-1111-111111111111 -UsesConnection-> connref:ppse_sharedoffice365_0002
+flow:11111111-1111-1111-1111-111111111111 -UsesEnvVar-> env:ppse_apibaseurl
+flow:11111111-1111-1111-1111-111111111111 -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Catch
+flow:11111111-1111-1111-1111-111111111111 -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Initialize_status
+flow:11111111-1111-1111-1111-111111111111 -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Route_by_status
+flow:11111111-1111-1111-1111-111111111111 -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Try
+flow:11111111-1111-1111-1111-111111111111 -Contains-> flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified
+flow:11111111-1111-1111-1111-111111111111 -Calls-> flow:22222222-2222-2222-2222-222222222222
+flow:11111111-1111-1111-1111-111111111111/action:Call_API -UsesEnvVar-> env:ppse_apibaseurl
+flow:11111111-1111-1111-1111-111111111111/action:Catch -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Notify_admin
+flow:11111111-1111-1111-1111-111111111111/action:Catch -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Terminate
+flow:11111111-1111-1111-1111-111111111111/action:For_each_contact -RunsAfter[Succeeded]-> flow:11111111-1111-1111-1111-111111111111/action:Call_API
+flow:11111111-1111-1111-1111-111111111111/action:For_each_contact -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Compose_missing_email
+flow:11111111-1111-1111-1111-111111111111/action:For_each_contact -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Has_email
+flow:11111111-1111-1111-1111-111111111111/action:For_each_contact -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Has_email
+flow:11111111-1111-1111-1111-111111111111/action:For_each_contact -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Update_contact
+flow:11111111-1111-1111-1111-111111111111/action:Has_email -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Compose_missing_email
+flow:11111111-1111-1111-1111-111111111111/action:Has_email -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Update_contact
+flow:11111111-1111-1111-1111-111111111111/action:Initialize_status -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Call_API
+flow:11111111-1111-1111-1111-111111111111/action:Initialize_status -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Notify_admin
+flow:11111111-1111-1111-1111-111111111111/action:Initialize_status -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Route_by_status
+flow:11111111-1111-1111-1111-111111111111/action:Initialize_status -RunsAfter[Succeeded]-> flow:11111111-1111-1111-1111-111111111111/action:Try
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -Reads-> column:contact._parentcustomerid_value
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -Reads-> column:contact.emailaddress1
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -Reads-> column:contact.fullname
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -Reads-> column:contact.statecode
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -UsesConnection-> connref:ppse_sharedcommondataserviceforapps_0001
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -RunsAfter[Succeeded]-> flow:11111111-1111-1111-1111-111111111111/action:For_each_contact
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:For_each_contact
+flow:11111111-1111-1111-1111-111111111111/action:List_contacts -Reads-> table:contact
+flow:11111111-1111-1111-1111-111111111111/action:Notify_admin -UsesConnection-> connref:ppse_sharedoffice365_0002
+flow:11111111-1111-1111-1111-111111111111/action:Notify_admin -RunsAfter[Succeeded, Failed]-> flow:11111111-1111-1111-1111-111111111111/action:Terminate
+flow:11111111-1111-1111-1111-111111111111/action:Route_by_status -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Mystery_step
+flow:11111111-1111-1111-1111-111111111111/action:Route_by_status -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Run_child_flow
+flow:11111111-1111-1111-1111-111111111111/action:Run_child_flow -Calls-> flow:22222222-2222-2222-2222-222222222222
+flow:11111111-1111-1111-1111-111111111111/action:Try -Contains-> flow:11111111-1111-1111-1111-111111111111/action:Call_API
+flow:11111111-1111-1111-1111-111111111111/action:Try -RunsAfter[Failed, TimedOut]-> flow:11111111-1111-1111-1111-111111111111/action:Catch
+flow:11111111-1111-1111-1111-111111111111/action:Try -Contains-> flow:11111111-1111-1111-1111-111111111111/action:For_each_contact
+flow:11111111-1111-1111-1111-111111111111/action:Try -Contains-> flow:11111111-1111-1111-1111-111111111111/action:List_contacts
+flow:11111111-1111-1111-1111-111111111111/action:Try -RunsAfter[Succeeded]-> flow:11111111-1111-1111-1111-111111111111/action:Route_by_status
+flow:11111111-1111-1111-1111-111111111111/action:Update_contact -Writes-> column:contact.description
+flow:11111111-1111-1111-1111-111111111111/action:Update_contact -UsesConnection-> connref:ppse_sharedcommondataserviceforapps_0001
+flow:11111111-1111-1111-1111-111111111111/action:Update_contact -Writes-> table:contact
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -Reads-> column:account.name
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -Reads-> column:account.telephone1
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -UsesConnection-> connref:ppse_sharedcommondataserviceforapps_0001
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:List_contacts
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Run_child_flow
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -DataFlow-> flow:11111111-1111-1111-1111-111111111111/action:Update_contact
+flow:11111111-1111-1111-1111-111111111111/trigger:When_an_account_is_modified -Reads-> table:account
+flow:22222222-2222-2222-2222-222222222222 -Contains-> flow:22222222-2222-2222-2222-222222222222/action:Respond
+flow:22222222-2222-2222-2222-222222222222 -Contains-> flow:22222222-2222-2222-2222-222222222222/trigger:manual
+flow:22222222-2222-2222-2222-222222222222/trigger:manual -DataFlow-> flow:22222222-2222-2222-2222-222222222222/action:Respond
+sol:ppsesample -Contains-> connref:ppse_sharedcommondataserviceforapps_0001
+sol:ppsesample -Contains-> connref:ppse_sharedoffice365_0002
+sol:ppsesample -Contains-> env:ppse_apibaseurl
+sol:ppsesample -Contains-> flow:11111111-1111-1111-1111-111111111111
+sol:ppsesample -Contains-> flow:22222222-2222-2222-2222-222222222222
+sol:ppsesample -Contains-> table:contact
+table:account -Contains-> column:account.name
+table:account -Contains-> column:account.telephone1
+table:account -Triggers-> flow:11111111-1111-1111-1111-111111111111
+table:contact -Contains-> column:contact._parentcustomerid_value
+table:contact -Contains-> column:contact.description
+table:contact -Contains-> column:contact.emailaddress1
+table:contact -Contains-> column:contact.fullname
+table:contact -Contains-> column:contact.statecode
+# unresolved
+flow:11111111-1111-1111-1111-111111111111/action:Call_API | body() argument is not a literal | body(variables('status'))
+flow:11111111-1111-1111-1111-111111111111/action:Mystery_step | outputs('Not_an_action') refers to an unknown action | outputs('Not_an_action')
+# warnings
+Workflow 'Legacy business rule' (category 2) is not a cloud flow and was not parsed.

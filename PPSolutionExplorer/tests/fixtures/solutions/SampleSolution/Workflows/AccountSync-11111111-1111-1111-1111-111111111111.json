@@ -1,0 +1,204 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "ppse_sharedcommondataserviceforapps_0001"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "ppse_sharedoffice365_0002"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": { "defaultValue": {}, "type": "Object" },
+        "$authentication": { "defaultValue": {}, "type": "SecureObject" },
+        "API Base URL (ppse_ApiBaseUrl)": {
+          "defaultValue": "https://api.example.invalid",
+          "type": "String",
+          "metadata": { "schemaName": "ppse_ApiBaseUrl", "description": "Base URL of the sample API" }
+        }
+      },
+      "triggers": {
+        "When_an_account_is_modified": {
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/entityname": "account",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filteringattributes": "name,telephone1"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Initialize_status": {
+          "runAfter": {},
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [ { "name": "status", "type": "string", "value": "pending" } ]
+          }
+        },
+        "Try": {
+          "runAfter": { "Initialize_status": [ "Succeeded" ] },
+          "type": "Scope",
+          "actions": {
+            "List_contacts": {
+              "runAfter": {},
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "contacts",
+                  "$select": "fullname,emailaddress1",
+                  "$filter": "_parentcustomerid_value eq '@{triggerOutputs()?['body/accountid']}' and statecode eq 0",
+                  "$orderby": "fullname asc",
+                  "$top": 500
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "For_each_contact": {
+              "foreach": "@outputs('List_contacts')?['body/value']",
+              "runAfter": { "List_contacts": [ "Succeeded" ] },
+              "type": "Foreach",
+              "actions": {
+                "Has_email": {
+                  "runAfter": {},
+                  "type": "If",
+                  "expression": {
+                    "and": [ { "not": { "equals": [ "@items('For_each_contact')?['emailaddress1']", "@null" ] } } ]
+                  },
+                  "actions": {
+                    "Update_contact": {
+                      "runAfter": {},
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "contacts",
+                          "recordId": "@items('For_each_contact')?['contactid']",
+                          "item/description": "Synced from @{triggerOutputs()?['body/name']}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Compose_missing_email": {
+                        "runAfter": {},
+                        "type": "Compose",
+                        "inputs": "@concat('No email for ', items('For_each_contact')?['fullname'])"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Call_API": {
+              "runAfter": { "For_each_contact": [ "Succeeded" ] },
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "@{parameters('API Base URL (ppse_ApiBaseUrl)')}/sync",
+                "body": "@body(variables('status'))"
+              }
+            }
+          }
+        },
+        "Catch": {
+          "runAfter": { "Try": [ "Failed", "TimedOut" ] },
+          "type": "Scope",
+          "actions": {
+            "Notify_admin": {
+              "runAfter": {},
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "emailMessage/To": "admin@example.invalid",
+                  "emailMessage/Subject": "Account sync failed",
+                  "emailMessage/Body": "@{workflow()?['run']?['name']} failed with status @{variables('status')}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": { "Notify_admin": [ "Succeeded", "Failed" ] },
+              "type": "Terminate",
+              "inputs": { "runStatus": "Failed" }
+            }
+          }
+        },
+        "Route_by_status": {
+          "runAfter": { "Try": [ "Succeeded" ] },
+          "type": "Switch",
+          "expression": "@variables('status')",
+          "cases": {
+            "Done": {
+              "case": "done",
+              "actions": {
+                "Run_child_flow": {
+                  "runAfter": {},
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": { "workflowReferenceName": "22222222-2222-2222-2222-222222222222" },
+                    "body": { "text": "@triggerBody()?['name']" }
+                  }
+                }
+              }
+            },
+            "Pending": {
+              "case": "pending",
+              "actions": {}
+            }
+          },
+          "default": {
+            "actions": {
+              "Mystery_step": {
+                "runAfter": {},
+                "type": "SomeFutureActionType",
+                "inputs": { "value": "@outputs('Not_an_action')" }
+              }
+            }
+          }
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
