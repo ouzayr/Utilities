@@ -1,0 +1,46 @@
+name: Newsletter Builder build
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - 'NewsletterBuilder/**'
+      - '.github/workflows/newsletter-builder.yml'
+  workflow_dispatch:
+
+jobs:
+  spfx:
+    name: SPFx package (.sppkg) + standalone single file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: NewsletterBuilder/spfx/package-lock.json
+
+      - name: Build standalone single file
+        working-directory: NewsletterBuilder
+        run: node scripts/build-single-file.js
+
+      - name: Install
+        working-directory: NewsletterBuilder/spfx
+        run: npm ci
+
+      - name: Build and package
+        working-directory: NewsletterBuilder/spfx
+        run: npm run build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: newsletter-builder
+          path: |
+            NewsletterBuilder/spfx/sharepoint/solution/newsletter-builder.sppkg
+            NewsletterBuilder/standalone/NewsletterBuilder.html
+          if-no-files-found: error
+          retention-days: 90

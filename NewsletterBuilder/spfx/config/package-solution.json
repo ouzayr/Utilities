@@ -1,0 +1,39 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "Newsletter Builder",
+    "id": "59caa538-0190-4a42-a52a-d1ed8d3ab3f7",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.24.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Build Outlook-ready HTML newsletters, store them in SharePoint and schedule sending via Power Automate."
+      },
+      "longDescription": {
+        "default": "Newsletter Builder: layout editor with people announcement sections (new joiners, celebrations, promotions, exam passes). Saves newsletters to a document library and schedules sends in a SharePoint list processed by Power Automate. Creates the library and list on first run."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "Newsletter Builder",
+        "description": "Adds the Newsletter Builder web part.",
+        "id": "40954538-5b5e-4a7b-9a41-02ba2e05842a",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/newsletter-builder.sppkg"
+  }
+}
